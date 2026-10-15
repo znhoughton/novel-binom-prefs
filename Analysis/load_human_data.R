@@ -19,6 +19,15 @@ suppressPackageStartupMessages({
 source("constraints.R")
 
 
+## The two pilot participants (2026-10-14). They ran the build in which the
+## alphabetical order was pinned to the left on every trial, before side
+## counterbalancing was added, so `alpha_side` is NA for them and any
+## side-related effect is unestimable from their data. They are dropped rather
+## than pooled, since keeping them would force the side term out of the model
+## for everyone. Pass exclude = character(0) to analyse the pilot on its own.
+PILOT_PARTICIPANTS <- character(0)  # ids moved to untracked Analysis/.pilot_participants
+
+
 #' Pull the chosen order out of PsychoPy's mouse.clicked_name field.
 #'
 #' The field is a list that accumulates EVERY click in the trial, not a single
@@ -75,7 +84,8 @@ read_pavlovia_csv <- function(path) {
 #'              participants = per-participant summary,
 #'              excluded = ids dropped, with reasons)
 load_human_data <- function(path = "../Data/human-responses",
-                            min_checks = 8) {
+                            min_checks = 8,
+                            exclude = PILOT_PARTICIPANTS) {
 
   if (dir.exists(path)) {
     files <- list.files(path, pattern = "\\.csv$", full.names = TRUE)
@@ -165,19 +175,36 @@ load_human_data <- function(path = "../Data/human-responses",
     summarise(n_checks = n(),
               n_correct = sum(check_correct),
               .groups = "drop") %>%
-    mutate(keep = n_correct >= min_checks)
+    mutate(
+      is_pilot = participant %in% exclude,
+      keep     = n_correct >= min_checks & !is_pilot
+    )
 
+  ## Pilot first, so someone who is both a pilot participant and below the
+  ## attention-check threshold is reported under the reason that actually
+  ## disqualifies them regardless of their accuracy.
   excluded <- per_participant %>%
     filter(!keep) %>%
-    mutate(reason = sprintf("passed %d/%d attention checks (threshold %d)",
-                            n_correct, n_checks, min_checks))
+    mutate(reason = dplyr::case_when(
+      is_pilot ~ "pilot: ran before side counterbalancing was added",
+      TRUE     ~ sprintf("passed %d/%d attention checks (threshold %d)",
+                         n_correct, n_checks, min_checks)
+    ))
 
   if (nrow(excluded)) {
+    n_pilot <- sum(excluded$is_pilot)
+    n_check <- nrow(excluded) - n_pilot
     message("excluding ", nrow(excluded), " of ", nrow(per_participant),
-            " participants on attention checks")
+            " participants (", n_pilot, " pilot, ", n_check, " attention checks)")
   }
 
   keepers <- per_participant %>% filter(keep) %>% pull(participant)
+
+  if (!length(keepers)) {
+    stop("no participants left after exclusions (", nrow(per_participant),
+         " seen, all dropped). If this is the pilot data on its own, pass ",
+         "exclude = character(0) to keep it.")
+  }
 
   ## --- novel items, the modelling set ---------------------------------------
   trials <- dat %>%

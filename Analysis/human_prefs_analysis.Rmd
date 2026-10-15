@@ -80,6 +80,34 @@ tibble(
 ) %>% knitr::kable()
 ```
 
+```{r exclusions}
+## Two grounds for exclusion, and they are not interchangeable. The attention
+## check is about the participant; the pilot exclusion is about the build they
+## saw. The two pilot participants (PILOT_PARTICIPANTS, defined in
+## load_human_data.R) ran before side counterbalancing existed, so alpha_side is
+## NA for them. Keeping them would force the side term out of the model for
+## everyone, since the rows with NA would be dropped from the fit.
+if (nrow(d$excluded)) {
+  d$excluded %>%
+    select(participant, n_correct, n_checks, reason) %>%
+    arrange(reason, participant) %>%
+    knitr::kable(caption = "Excluded participants and why.")
+} else {
+  knitr::kable(tibble(note = "no participants excluded"))
+}
+```
+
+```{r side-coverage}
+## Should be 0 once the pilot is out. Anything above 0 means some retained
+## participant has no side logged, which would silently shrink the side model.
+tibble(
+  `retained trials`        = nrow(trials),
+  `missing alpha_side`     = sum(is.na(trials$alpha_side)),
+  `side modellable`        = !all(is.na(trials$alpha_side)) &&
+                             n_distinct(na.omit(trials$alpha_side)) > 1
+) %>% knitr::kable()
+```
+
 ## Attention checks
 
 ```{r checks}
