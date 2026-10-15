@@ -17,3 +17,7 @@ Experiment/
 
 # Scratch
 *.tmp
+
+# Run logs. score_llm_prefs.py writes one per nohup invocation on the server,
+# and they are mostly tqdm redraw noise. The CSVs are the durable record.
+*.log

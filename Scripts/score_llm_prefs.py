@@ -221,9 +221,14 @@ MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
     "Qwen/Qwen3-1.7B-Base":      {"family": "qwen3",   "params": 1700},
     "Qwen/Qwen3-4B-Base":        {"family": "qwen3",   "params": 4000},
     "Qwen/Qwen3-8B-Base":        {"family": "qwen3",   "params": 8000, "large_model": True},
+    # `gated` reflects what the Hub actually enforces, checked anonymously by
+    # HEADing a weight file rather than by resolving the repo id: a gated repo's
+    # metadata resolves for anyone, so model_info() alone says nothing about
+    # whether the weights will download. Mistral-7B-v0.3 is ungated now whatever
+    # it was when this list was first written.
     "meta-llama/Llama-3.2-3B":   {"family": "llama3",  "params": 3000, "gated": True},
     "google/gemma-3-4b-pt":      {"family": "gemma3",  "params": 4000, "gated": True},
-    "mistralai/Mistral-7B-v0.3": {"family": "mistral", "params": 7000, "gated": True,
+    "mistralai/Mistral-7B-v0.3": {"family": "mistral", "params": 7000,
                                   "large_model": True},
 
     # ── Off by default, uncomment to add ─────────────────────────────────────
