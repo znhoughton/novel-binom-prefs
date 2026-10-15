@@ -1,0 +1,378 @@
+---
+title: "Human Ordering Preferences for Novel Binomials"
+subtitle: "Abstract preference and individual constraints"
+author: "Zachary Houghton"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 8, fig.height = 5, dpi = 150)
+```
+
+```{r libraries}
+library(tidyverse)
+library(brms)
+library(tidybayes)
+source("load_human_data.R")
+```
+
+Ported from `CoNLL-2025-paper/Scripts/human-prefs-analysis.Rmd`. The model
+specifications follow that script closely so results are comparable; the data
+loading is rewritten for Pavlovia output (see `load_human_data.R`).
+
+Two differences from the source script are worth stating up front:
+
+- **`participant` is the real identifier.** The CoNLL script built one with
+  `group_by(ResponseId) %>% mutate(participant = sample(1:1000, size = 1))`,
+  which draws with replacement and so can collide, silently pooling two people
+  into one. Pavlovia gives us a genuine participant id, so we use it.
+- **`Icon` is dropped from the constraint model.** Every novel item here is coded
+  `Icon = 0`, so it has no variance and cannot be estimated. It remains in the
+  AbsPref formula, where it contributes zero.
+
+```{r config}
+DATA_DIR   <- "../Data/human-responses"   # drop Pavlovia .csv files here
+MIN_CHECKS <- 8                           # of 10 attention checks
+ITER <- 6000; WARMUP <- 3000; CHAINS <- 4; CORES <- 4
+SEED <- 964
+
+## Sum coding for every factor that enters a model matrix, so the intercept is
+## the grand mean rather than the value at some arbitrary reference level. Set
+## at the top of every analysis script in this project, whether or not the
+## current models happen to contain a factor.
+##
+## Both slots: the first applies to unordered factors, the second to ordered
+## ones (R defaults those to contr.poly). Sum coding in both so an ordered
+## factor cannot quietly arrive with polynomial contrasts instead.
+options(contrasts = c("contr.sum", "contr.sum"))
+
+## brms reads models back from `file=` without refitting, so a model cached
+## before this option was set keeps its old parameterisation. Delete the files
+## in models/ to re-estimate under sum coding.
+set.seed(SEED)
+```
+
+# Data
+
+```{r load}
+d <- load_human_data(DATA_DIR, min_checks = MIN_CHECKS)
+trials <- d$trials
+```
+
+```{r describe}
+tibble(
+  quantity = c("participants retained", "participants excluded",
+               "novel-item trials", "distinct items judged",
+               "median judgements per item"),
+  value = c(
+    nlevels(trials$participant),
+    nrow(d$excluded),
+    nrow(trials),
+    n_distinct(trials$item_id),
+    median(count(trials, item_id)$n)
+  )
+) %>% knitr::kable()
+```
+
+## Attention checks
+
+```{r checks}
+d$checks %>%
+  group_by(item_id, Alpha, expected) %>%
+  summarise(n = n(), pct_correct = 100 * mean(check_correct), .groups = "drop") %>%
+  arrange(pct_correct) %>%
+  knitr::kable(digits = 1,
+               caption = "Per-check accuracy. A check far below the rest is more
+                          likely a bad item than a room full of inattentive
+                          participants.")
+```
+
+## Side-bias check
+
+`alpha_side` records which side the alphabetical order was shown on. It is
+balanced 51/51 within each participant by construction, so this is a check that
+the manipulation did what it claims, and that participants are not simply
+clicking a preferred side.
+
+```{r side-bias}
+trials %>%
+  group_by(alpha_side) %>%
+  summarise(n = n(), prop_chose_alpha = mean(alpha_answer), .groups = "drop") %>%
+  knitr::kable(digits = 3)
+```
+
+A large gap between the two rows means side is driving responses; the two
+proportions should be close.
+
+# Abstract preference
+
+`AbsPref` is the Morgan & Levy abstract preference: a logistic over the weighted
+constraint sum, defined in `load_human_data.R`. It is centred at 0.5 (`AbsPref_c`)
+so the intercept is interpretable as the log-odds of choosing the alphabetical
+order for an item with no abstract preference either way.
+
+Two nuisance predictors ride along in every model below.
+
+`trial_num_z` is position in the run, standardised, so practice and fatigue are
+estimated rather than left in the residual. `alpha_side_c` is which side the
+alphabetical order was drawn on, centred (left −0.5, right +0.5).
+
+Both go in as **fixed** effects with by-participant random slopes, not as
+grouping factors. `alpha_side` has two levels, and a two-level factor cannot be
+a random-effect grouping term: there is no population of sides to generalise
+over, and the variance is unidentifiable. The by-participant slope is the part
+that is genuinely random, and it is the quantity of interest anyway, since it
+asks whether individual people carry a side bias.
+
+```{r control-terms}
+## alpha_side is NA for anything collected before the counterbalancing was added
+## (it was always on the left then). Leaving it in the formula would drop every
+## such row without comment, so it only enters when it was logged and varies.
+##
+## It enters as the factor, not the centred numeric `alpha_side_c`, so that the
+## contr.sum setting above actually applies to it. Under contr.sum the two
+## levels are coded +1 and -1, which makes the coefficient *half* the
+## left-to-right difference in log-odds; `alpha_side_c` (-0.5/+0.5) would have
+## given the full difference. Both are in the data, so swap if you prefer that
+## reading, but do not mix them across models.
+ctrl_terms <- "trial_num_z"
+side_usable <- !all(is.na(trials$alpha_side)) &&
+               n_distinct(na.omit(trials$alpha_side)) > 1
+if (side_usable) ctrl_terms <- c(ctrl_terms, "alpha_side")
+
+if (!side_usable) {
+  message("alpha_side not modelled: ",
+          if (all(is.na(trials$alpha_side))) "absent from this data"
+          else "only one side present")
+}
+ctrl_terms
+```
+
+```{r m-abspref}
+f_abspref <- as.formula(paste(
+  "alpha_answer ~ AbsPref_c +", paste(ctrl_terms, collapse = " + "),
+  "+ (", paste(c("AbsPref_c", ctrl_terms), collapse = " + "), "| participant)",
+  "+ (1 | Item)"
+))
+
+m_abspref <- brm(
+  f_abspref,
+  data = trials,
+  family = bernoulli(link = "logit"),
+  iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = 964,
+  file = "models/m_abspref"
+)
+
+fixef(m_abspref)
+```
+
+```{r side-and-trial}
+## The two nuisance effects, read directly. A side coefficient far from zero
+## means people favoured a position regardless of the ordering shown there.
+if (side_usable) {
+  ## Under contr.sum brms names the side coefficient b_alpha_side1.
+  as_draws_df(m_abspref) %>%
+    select(any_of(c("b_alpha_side1", "b_alpha_side_c", "b_trial_num_z"))) %>%
+    pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+    group_by(term) %>%
+    summarise(median = median(estimate),
+              q2.5 = quantile(estimate, 0.025),
+              q97.5 = quantile(estimate, 0.975),
+              pct_above_zero = 100 * mean(estimate > 0),
+              .groups = "drop") %>%
+    knitr::kable(digits = 3,
+                 caption = "Side bias and position-in-run, on the log-odds scale.")
+} else {
+  knitr::kable(
+    as_draws_df(m_abspref) %>%
+      select(any_of("b_trial_num_z")) %>%
+      summarise(median = median(b_trial_num_z),
+                q2.5 = quantile(b_trial_num_z, 0.025),
+                q97.5 = quantile(b_trial_num_z, 0.975)),
+    digits = 3, caption = "Position-in-run. Side is not estimable in this data.")
+}
+```
+
+```{r abspref-posterior}
+## Proportion of posterior samples above zero, as in the source script.
+as_draws_df(m_abspref) %>%
+  select(b_Intercept, b_AbsPref_c) %>%
+  pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+  group_by(term) %>%
+  summarise(median = median(estimate),
+            q2.5 = quantile(estimate, 0.025),
+            q97.5 = quantile(estimate, 0.975),
+            pct_above_zero = 100 * mean(estimate > 0),
+            .groups = "drop") %>%
+  knitr::kable(digits = 3)
+```
+
+## Item-level fit
+
+Aggregating to one point per binomial is the clearest view of whether abstract
+preference tracks what people actually do.
+
+```{r plot-abspref, fig.width=7, fig.height=6}
+item_level <- trials %>%
+  group_by(item_id, Item, AbsPref) %>%
+  summarise(human_p = mean(alpha_answer), n = n(), .groups = "drop")
+
+ggplot(item_level, aes(x = AbsPref, y = human_p)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  geom_hline(yintercept = 0.5, linewidth = 0.2, colour = "grey80") +
+  geom_vline(xintercept = 0.5, linewidth = 0.2, colour = "grey80") +
+  geom_point(aes(size = n), alpha = 0.45) +
+  geom_smooth(method = "lm", se = TRUE, colour = "steelblue") +
+  scale_size_continuous(range = c(0.6, 2.5), guide = "none") +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(x = "Abstract preference (AbsPref)",
+       y = "Human preference for alphabetical order",
+       caption = "Dashed line is identity. Point size is judgements per item.") +
+  theme_bw()
+```
+
+```{r abspref-cor}
+with(item_level, tibble(
+  pearson  = cor(AbsPref, human_p),
+  spearman = cor(AbsPref, human_p, method = "spearman"),
+  ## Does AbsPref at least get the direction right?
+  direction_agreement = mean((AbsPref > 0.5) == (human_p > 0.5))
+)) %>% knitr::kable(digits = 3)
+```
+
+# Individual constraints
+
+Every constraint that varies across these items, entered simultaneously. This
+asks which constraints people are actually sensitive to, rather than assuming the
+Morgan & Levy weighting.
+
+```{r constraint-data}
+## Continuous predictors are standardised so their coefficients are comparable
+## with the +/-1 coded categorical ones. The categorical constraints are already
+## on a common scale and are left alone.
+trials_c <- trials %>%
+  mutate(across(c(Freq, Len, Lapse), ~ as.numeric(scale(.x)), .names = "{.col}_z"))
+
+constraint_terms <- c("Form", "Percept", "Culture", "Power", "Intense",
+                      "Freq_z", "Len_z", "Lapse_z", "BStress")
+```
+
+```{r m-constraints}
+## Random intercepts only. With nine predictors a full random-slope matrix is a
+## 9x9 correlation to estimate and routinely fails to converge; the slope model
+## below mirrors the CoNLL specification on the subset it used.
+f_fixed <- as.formula(paste(
+  "alpha_answer ~", paste(c(constraint_terms, ctrl_terms), collapse = " + "),
+  "+ (", paste(ctrl_terms, collapse = " + "), "| participant) + (1 | Item)"
+))
+
+m_constraints <- brm(
+  f_fixed,
+  data = trials_c,
+  family = bernoulli(link = "logit"),
+  iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES,
+  file = "models/m_constraints"
+)
+
+fixef(m_constraints)
+```
+
+```{r m-constraints-slopes}
+## The CoNLL specification: random slopes over the six constraints it modelled.
+## Kept for comparability with that paper.
+conll_terms <- c("Culture", "Power", "Freq_z", "Len_z", "Intense", "Percept")
+
+f_slopes <- as.formula(paste(
+  "alpha_answer ~", paste(c(conll_terms, ctrl_terms), collapse = " + "),
+  "+ (", paste(c(conll_terms, ctrl_terms), collapse = " + "), "| participant)",
+  "+ (1 | Item)"
+))
+
+m_constraints_slopes <- brm(
+  f_slopes,
+  data = trials_c,
+  family = bernoulli(link = "logit"),
+  iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES,
+  file = "models/m_constraints_slopes"
+)
+
+fixef(m_constraints_slopes)
+```
+
+```{r constraint-table}
+constraint_summary <- as_draws_df(m_constraints) %>%
+  select(starts_with("b_"), -b_Intercept) %>%
+  pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+  mutate(term = str_remove(term, "^b_")) %>%
+  group_by(term) %>%
+  summarise(median = median(estimate),
+            q2.5 = quantile(estimate, 0.025),
+            q97.5 = quantile(estimate, 0.975),
+            pct_above_zero = 100 * mean(estimate > 0),
+            .groups = "drop") %>%
+  arrange(desc(abs(median)))
+
+knitr::kable(constraint_summary, digits = 3)
+```
+
+```{r plot-constraints, fig.width=7, fig.height=5}
+constraint_summary %>%
+  mutate(term = fct_reorder(term, median)) %>%
+  ggplot(aes(x = median, y = term)) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_pointrange(aes(xmin = q2.5, xmax = q97.5)) +
+  labs(x = "Coefficient (log-odds of choosing the alphabetical order)",
+       y = NULL,
+       caption = "Points are posterior medians with 95% credible intervals.") +
+  theme_bw()
+```
+
+## Fitted weights against Morgan & Levy's
+
+Do the constraint weights people show here match the ones AbsPref assumes? The
+two are on different scales, so the comparison is about relative ordering and
+sign, not absolute magnitude.
+
+```{r weights-vs-ml, fig.width=7, fig.height=5}
+ml <- tibble(term = names(ML_WEIGHTS), ml_weight = as.numeric(ML_WEIGHTS)) %>%
+  filter(term != "Intercept")
+
+constraint_summary %>%
+  mutate(base = str_remove(term, "_z$")) %>%
+  inner_join(ml, by = c("base" = "term")) %>%
+  ggplot(aes(x = ml_weight, y = median)) +
+  geom_hline(yintercept = 0, linewidth = 0.2, colour = "grey70") +
+  geom_vline(xintercept = 0, linewidth = 0.2, colour = "grey70") +
+  geom_pointrange(aes(ymin = q2.5, ymax = q97.5)) +
+  ggrepel::geom_text_repel(aes(label = term), size = 3) +
+  labs(x = "Morgan & Levy weight (used by AbsPref)",
+       y = "Fitted weight in this study") +
+  theme_bw()
+```
+
+# Model comparison
+
+Does knowing the individual constraints buy anything over the single AbsPref
+summary? Both are fit to the same rows, so LOO is comparable.
+
+```{r loo}
+m_abspref          <- add_criterion(m_abspref, "loo")
+m_constraints      <- add_criterion(m_constraints, "loo")
+loo_compare(m_abspref, m_constraints)
+```
+
+A large advantage for `m_constraints` means people weight the constraints
+differently from Morgan & Levy's fixed weighting; a small one means AbsPref
+already captures most of what the constraints explain.
+
+# Session info
+
+```{r session}
+sessionInfo()
+```

@@ -1,0 +1,378 @@
+---
+title: "LLM Ordering Preferences for Novel Binomials"
+subtitle: "Abstract preference and individual constraints across model families and scales"
+author: "Zachary Houghton"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 8, fig.height = 5, dpi = 150)
+```
+
+```{r libraries}
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(ggrepel)
+source("load_llm_data.R")
+source("load_human_data.R")
+```
+
+The LLM side of the same 458 novel binomials people judged. Scores come from
+`Scripts/score_llm_prefs.py`, which records, for every (model, prompt, item),
+
+$$\texttt{preference} = \log P(\text{word1 and word2}) - \log P(\text{word2 and word1})$$
+
+so `preference` is the model's log-odds of the alphabetical order and is directly
+comparable to the logit-scale quantity the human bernoulli models estimate.
+
+The specification mirrors `human_prefs_analysis.Rmd` with two substitutions,
+which are the same ones used in LLM-Ordering-Preferences:
+
+- the outcome is Gaussian on the log-odds scale rather than a bernoulli choice,
+  because each cell yields a continuous score rather than a single click;
+- `prompt_value` takes the place of `participant` as the repeated-measures
+  grouping factor. A model is a model, not a sample of models, so each one is fit
+  on its own and the models are compared afterwards rather than pooled.
+
+```{r config}
+LLM_DIR    <- "../Data/llm-prefs"
+HUMAN_DIR  <- "../Data/human-responses"
+MIN_CHECKS <- 8
+ITER <- 6000; WARMUP <- 3000; CHAINS <- 4; CORES <- 4
+SEED <- 964
+
+## Fitting every model takes hours. Set this to a character vector of model names
+## (or families) to work on a subset while developing.
+FIT_ONLY <- NULL
+
+## Sum coding, matching human_prefs_analysis.Rmd so the two sides are
+## parameterised the same way. Set in every analysis script in this project,
+## whether or not the current models contain a factor; here it starts mattering
+## the moment `model` or `model_family` enters a pooled `AbsPref_c * model` fit.
+##
+## Both slots: the first applies to unordered factors, the second to ordered
+## ones (R defaults those to contr.poly).
+options(contrasts = c("contr.sum", "contr.sum"))
+
+## brms reads cached fits from `file=` without refitting, so models estimated
+## before this option was set keep their old parameterisation. Clear models/ to
+## re-estimate under sum coding.
+dir.create("models", showWarnings = FALSE)
+set.seed(SEED)
+```
+
+# Data
+
+```{r load}
+llm    <- load_llm_data(LLM_DIR, models = FIT_ONLY)
+scores <- llm$scores
+items  <- llm$items
+```
+
+```{r coverage}
+llm$coverage %>%
+  knitr::kable(caption = "One row per scored model. `n_items` should be 458 and
+                          `n_prompts` 51 everywhere; anything lower means that
+                          model's run was interrupted and should be resumed.")
+```
+
+# Abstract preference
+
+`AbsPref` is the Morgan & Levy abstract preference, computed by the same
+`add_abs_pref()` the human analysis uses (`constraints.R`). Centring at 0.5 makes
+the intercept the model's log-odds of the alphabetical order for an item with no
+abstract preference either way, which is the bias term: a model that simply likes
+whichever order it saw first, or alphabetical order as a spelling artefact, shows
+up here rather than in the slope.
+
+```{r m-abspref, results="hide"}
+## One fit per model. `file =` caches each to models/, so an interrupted run
+## resumes rather than refitting everything.
+fit_abspref <- function(model_name) {
+  d <- scores %>% filter(model == model_name)
+  brm(
+    preference ~ AbsPref_c + (AbsPref_c | prompt_value) + (1 | Item),
+    data = d,
+    family = gaussian(),
+    iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
+    file = file.path("models", paste0("llm_abspref_", make.names(model_name)))
+  )
+}
+
+model_names <- levels(droplevels(scores$model))
+abspref_fits <- set_names(map(model_names, fit_abspref), model_names)
+```
+
+```{r abspref-coefs}
+model_meta <- scores %>%
+  distinct(model, model_family, params) %>%
+  mutate(model = as.character(model))
+
+abspref_coefs <- imap_dfr(abspref_fits, function(fit, model_name) {
+  as_draws_df(fit) %>%
+    select(b_Intercept, b_AbsPref_c) %>%
+    pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+    group_by(term) %>%
+    summarise(median = median(estimate),
+              q2.5   = quantile(estimate, 0.025),
+              q97.5  = quantile(estimate, 0.975),
+              pct_above_zero = 100 * mean(estimate > 0),
+              .groups = "drop") %>%
+    mutate(model = model_name)
+}) %>%
+  left_join(model_meta, by = "model")
+
+abspref_coefs %>%
+  filter(term == "b_AbsPref_c") %>%
+  arrange(params) %>%
+  select(model, model_family, params, median, q2.5, q97.5, pct_above_zero) %>%
+  knitr::kable(digits = 3,
+               caption = "Sensitivity to abstract preference, one row per model.")
+```
+
+## Does sensitivity scale?
+
+```{r plot-scale, fig.width=8, fig.height=5.5}
+abspref_coefs %>%
+  filter(term == "b_AbsPref_c") %>%
+  ggplot(aes(x = params, y = median, colour = model_family)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_pointrange(aes(ymin = q2.5, ymax = q97.5)) +
+  geom_line(aes(group = model_family), alpha = 0.4) +
+  geom_text_repel(aes(label = model), size = 2.6, show.legend = FALSE,
+                  max.overlaps = 20) +
+  scale_x_log10(labels = scales::label_comma(suffix = "M")) +
+  labs(x = "Parameters (log scale)",
+       y = "AbsPref coefficient (log-odds)",
+       colour = "Family",
+       caption = "Posterior medians with 95% credible intervals.
+                  Lines join models within a family.") +
+  theme_bw()
+```
+
+Within a family the line is the scale trend with architecture and training data
+held constant; across families the vertical spread at a given size is what
+training data and recipe buy. The BabyLM models sit at the small end on a
+human-sized corpus, so the gap between them and a same-size model trained on
+orders of magnitude more text is the data-quantity comparison.
+
+## Intercepts
+
+```{r abspref-intercepts}
+abspref_coefs %>%
+  filter(term == "b_Intercept") %>%
+  arrange(desc(abs(median))) %>%
+  select(model, model_family, params, median, q2.5, q97.5) %>%
+  knitr::kable(digits = 3,
+               caption = "Baseline preference for the alphabetical order at
+                          AbsPref = 0.5. Far from zero means a standing bias
+                          independent of the constraints.")
+```
+
+# Item-level agreement with people
+
+Aggregating to one point per binomial is the most direct human/LLM comparison,
+and it needs no scale assumption on either side.
+
+```{r human-load}
+d_human <- load_human_data(HUMAN_DIR, min_checks = MIN_CHECKS)
+paired  <- join_human_llm(items, d_human$trials)
+```
+
+```{r agreement-table}
+paired %>%
+  group_by(model, model_family, params) %>%
+  summarise(
+    pearson  = cor(llm_preference, human_logodds),
+    spearman = cor(llm_preference, human_logodds, method = "spearman"),
+    ## Do the two sides at least pick the same order?
+    direction_agreement = mean((llm_p > 0.5) == (human_p > 0.5)),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(spearman)) %>%
+  knitr::kable(digits = 3,
+               caption = "LLM preference against human preference, over the 458
+                          items. Correlations are on the log-odds scale;
+                          direction agreement is scale-free.")
+```
+
+```{r plot-agreement, fig.width=9, fig.height=8}
+paired %>%
+  ggplot(aes(x = human_p, y = llm_p)) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed", colour = "grey50") +
+  geom_hline(yintercept = 0.5, linewidth = 0.2, colour = "grey85") +
+  geom_vline(xintercept = 0.5, linewidth = 0.2, colour = "grey85") +
+  geom_point(alpha = 0.3, size = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, colour = "steelblue", linewidth = 0.6) +
+  facet_wrap(~ fct_reorder(model, params)) +
+  coord_equal(xlim = c(0, 1), ylim = c(0, 1)) +
+  labs(x = "Human preference for the alphabetical order",
+       y = "Model preference, averaged over prompts",
+       caption = "Dashed line is identity.") +
+  theme_bw(base_size = 8)
+```
+
+A model can track people's *ranking* closely while sitting far off the identity
+line, because nothing forces its log-odds onto the same scale as a choice
+proportion. Read the correlation columns for ranking and the plot for calibration.
+
+# Individual constraints
+
+The same simultaneous-constraint model the human analysis fits, with `Icon`
+dropped because every novel item is coded 0.
+
+```{r m-constraints, results="hide"}
+constraint_terms <- c("Form", "Percept", "Culture", "Power", "Intense",
+                      "Freq_z", "Len_z", "Lapse_z", "BStress")
+
+f_constraints <- as.formula(paste(
+  "preference ~", paste(constraint_terms, collapse = " + "),
+  "+ (1 | prompt_value) + (1 | Item)"
+))
+
+## Random intercepts only for prompt. The human script gives its reason (a 9x9
+## slope correlation routinely fails to converge) and it applies here too.
+fit_constraints <- function(model_name) {
+  d <- scores %>% filter(model == model_name)
+  brm(
+    f_constraints,
+    data = d,
+    family = gaussian(),
+    iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
+    file = file.path("models", paste0("llm_constraints_", make.names(model_name)))
+  )
+}
+
+constraint_fits <- set_names(map(model_names, fit_constraints), model_names)
+```
+
+```{r constraint-coefs}
+llm_constraint_coefs <- imap_dfr(constraint_fits, function(fit, model_name) {
+  as_draws_df(fit) %>%
+    select(starts_with("b_"), -b_Intercept) %>%
+    pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+    mutate(term = str_remove(term, "^b_")) %>%
+    group_by(term) %>%
+    summarise(median = median(estimate),
+              q2.5   = quantile(estimate, 0.025),
+              q97.5  = quantile(estimate, 0.975),
+              pct_above_zero = 100 * mean(estimate > 0),
+              .groups = "drop") %>%
+    mutate(model = model_name)
+}) %>%
+  left_join(model_meta, by = "model")
+```
+
+```{r plot-constraints, fig.width=9, fig.height=7}
+llm_constraint_coefs %>%
+  mutate(term = fct_reorder(term, median)) %>%
+  ggplot(aes(x = median, y = term, colour = model_family)) +
+  geom_vline(xintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_pointrange(aes(xmin = q2.5, xmax = q97.5),
+                  position = position_dodge(width = 0.6), size = 0.2) +
+  labs(x = "Coefficient (log-odds of the alphabetical order)",
+       y = NULL, colour = "Family",
+       caption = "Posterior medians with 95% credible intervals, one estimate
+                  per model per constraint.") +
+  theme_bw()
+```
+
+## Against the human weights
+
+The two sides are on different scales, so this is about sign and relative
+ordering, not magnitude.
+
+```{r human-constraints}
+## Refits nothing: human_prefs_analysis.Rmd already cached this model, and
+## brm(file = ) reads it back when the file exists.
+trials_c <- d_human$trials %>%
+  mutate(across(c(Freq, Len, Lapse), ~ as.numeric(scale(.x)), .names = "{.col}_z"))
+
+f_human <- as.formula(paste(
+  "alpha_answer ~", paste(constraint_terms, collapse = " + "),
+  "+ (1 | participant) + (1 | Item)"
+))
+
+m_constraints_human <- brm(
+  f_human, data = trials_c, family = bernoulli(link = "logit"),
+  iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
+  file = "models/m_constraints"
+)
+
+human_coefs <- as_draws_df(m_constraints_human) %>%
+  select(starts_with("b_"), -b_Intercept) %>%
+  pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+  mutate(term = str_remove(term, "^b_")) %>%
+  group_by(term) %>%
+  summarise(human_median = median(estimate), .groups = "drop")
+```
+
+```{r weight-agreement}
+llm_constraint_coefs %>%
+  inner_join(human_coefs, by = "term") %>%
+  group_by(model, model_family, params) %>%
+  summarise(
+    weight_pearson  = cor(median, human_median),
+    weight_spearman = cor(median, human_median, method = "spearman"),
+    sign_agreement  = mean(sign(median) == sign(human_median)),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(weight_spearman)) %>%
+  knitr::kable(digits = 3,
+               caption = "How closely each model's fitted constraint weights
+                          track the human ones, across the nine constraints.")
+```
+
+```{r plot-weights, fig.width=9, fig.height=8}
+llm_constraint_coefs %>%
+  inner_join(human_coefs, by = "term") %>%
+  ggplot(aes(x = human_median, y = median)) +
+  geom_hline(yintercept = 0, linewidth = 0.2, colour = "grey70") +
+  geom_vline(xintercept = 0, linewidth = 0.2, colour = "grey70") +
+  geom_pointrange(aes(ymin = q2.5, ymax = q97.5), size = 0.2) +
+  geom_text_repel(aes(label = term), size = 2.2, max.overlaps = 20) +
+  facet_wrap(~ fct_reorder(model, params), scales = "free_y") +
+  labs(x = "Human weight (log-odds)",
+       y = "Model weight (log-odds)") +
+  theme_bw(base_size = 8)
+```
+
+A model that has learned the human constraint profile puts the points on an
+upward line through the origin. One that has learned a different profile puts
+them somewhere else, and *which* constraints move is the interesting part:
+`Freq_z` and `Len_z` are recoverable from distributional statistics alone, while
+`Power`, `Culture` and `Percept` are semantic and have no direct surface cue.
+
+# Prompt sensitivity
+
+How much does the frame move the estimate? If a model's preference swings with
+the prefix, a single-prompt result from it would not have replicated.
+
+```{r prompt-sd}
+scores %>%
+  group_by(model, model_family, params, item_id) %>%
+  summarise(sd_across_prompts = sd(preference), .groups = "drop") %>%
+  group_by(model, model_family, params) %>%
+  summarise(median_sd = median(sd_across_prompts),
+            q95_sd    = quantile(sd_across_prompts, 0.95),
+            .groups   = "drop") %>%
+  arrange(params) %>%
+  knitr::kable(digits = 3,
+               caption = "Within-item spread of preference across the 51 prompts.
+                          Compare with the AbsPref coefficients above: a model
+                          whose prompt spread dwarfs its AbsPref effect is not
+                          giving a stable preference.")
+```
+
+# Session info
+
+```{r session}
+sessionInfo()
+```

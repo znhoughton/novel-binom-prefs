@@ -1,0 +1,19 @@
+# R
+.Rproj.user/
+.Rhistory
+.RData
+
+# Python
+__pycache__/
+*.pyc
+
+# brms fits: regenerable from the Rmds, and large
+Analysis/models/*.rds
+
+# The experiment is its own repo, synced to Pavlovia:
+# https://gitlab.pavlovia.org/znhoughton/novel-binom-judgements
+# Its conditions file is mirrored to Data/ so this repo stands alone.
+Experiment/
+
+# Scratch
+*.tmp
