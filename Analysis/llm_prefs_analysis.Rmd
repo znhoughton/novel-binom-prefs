@@ -104,7 +104,7 @@ strongest available n-gram baseline is built from the component bigrams
 the Pile, the hand-trained models against BabyLM, everything else against Dolma.
 
 If an effect survives the bigram arm, it is not reducible to the corpus's
-positional statistics. That is the comparison the LOO table below is for.
+positional statistics.
 
 ```{r m-abspref, results="hide"}
 ## One fit per model per arm. `file =` caches each to models/, so an interrupted
@@ -191,32 +191,6 @@ abspref_coefs %>%
                           bigram coefficient itself. `shrinkage` is the
                           proportion of the AbsPref effect the control absorbs;
                           near 0 means the two are measuring different things.")
-```
-
-```{r abspref-bigram-loo, results="hide"}
-## Does adding the bigram term improve prediction? Both arms are fit to the same
-## rows, so LOO is comparable within a model.
-abspref_loo <- imap_dfr(model_names %>% set_names(), function(m, .) {
-  a  <- add_criterion(abspref_fits[[m]],    "loo")
-  ab <- add_criterion(abspref_bg_fits[[m]], "loo")
-  cmp <- loo_compare(a, ab)
-  tibble(model = m,
-         better = rownames(cmp)[1],
-         elpd_diff = cmp[2, "elpd_diff"],
-         se_diff   = cmp[2, "se_diff"])
-})
-```
-
-```{r abspref-loo-table}
-abspref_loo %>%
-  mutate(better = recode(better, a = "AbsPref alone", ab = "with bigram")) %>%
-  left_join(model_meta, by = "model") %>%
-  arrange(params) %>%
-  select(model, params, better, elpd_diff, se_diff) %>%
-  knitr::kable(digits = 2,
-               caption = "LOO comparison of the two arms. A difference smaller
-                          than about twice its standard error is not a
-                          meaningful preference either way.")
 ```
 
 ## Does sensitivity scale?
