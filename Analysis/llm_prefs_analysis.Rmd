@@ -288,14 +288,21 @@ dropped because every novel item is coded 0.
 constraint_terms <- c("Form", "Percept", "Culture", "Power", "Intense",
                       "Freq", "Len", "Lapse", "BStress")
 
-## Random intercepts only for prompt. The human script gives its reason (a 9x9
-## slope correlation routinely fails to converge) and it applies here too.
+## By-prompt random slopes for every constraint, matching the specification in
+## the earlier version of this work. The constraints vary within prompt (each
+## prompt sees all 444 items), so the slopes are licensed; and with 51 prompts
+## against 444 items they are better identified than a per-participant slope
+## would be. If a fit fails to converge, CONSTRAINT_SLOPES can be set FALSE to
+## fall back to random intercepts rather than silently keeping a bad fit.
+CONSTRAINT_SLOPES <- TRUE
+
 fit_constraints <- function(model_name, with_bigram = FALSE) {
   d <- scores %>% filter(model == model_name)
   terms <- if (with_bigram) c(constraint_terms, "bigram_logodds_z")
            else constraint_terms
+  re <- if (CONSTRAINT_SLOPES) paste(terms, collapse = " + ") else "1"
   f <- as.formula(paste("preference ~", paste(terms, collapse = " + "),
-                        "+ (1 | prompt_value) + (1 | Item)"))
+                        "+ (", re, "| prompt_value) + (1 | Item)"))
   brm(
     f, data = d, family = gaussian(),
     iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,

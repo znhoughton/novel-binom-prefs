@@ -157,14 +157,16 @@ composition of this particular item set.
 
 ## Corpus bigram log-odds {#sec-bigram}
 
-The ACL submission controlled for "bigram probabilities" to rule out surface
-co-occurrence as the driver of model preferences. That control needs restating,
-because the quantity it most naturally refers to is identically zero here: the
-trigram *word1 and word2* has a count of zero for every item **by
-construction**, since that is the novelty criterion.
+We control for corpus bigram statistics, to rule out surface co-occurrence as
+the driver of model preferences. The phrase itself cannot serve: the trigram
+*word1 and word2* has a count of zero for every item **by construction**, since
+that is the novelty criterion. The control is therefore built from the component
+bigrams, which are not zero.
 
-The informative quantity is built from the component bigrams, which are not
-zero. Under a first-order Markov model,
+This is the same quantity used in the earlier version of this work, where it was
+written as a ratio of Markov-factored phrase probabilities. The unigram terms
+and the shared count of *and* cancel between the two orderings, so that
+expression reduces to the count form used here:
 
 $$\log \frac{P(w_1\ \text{and}\ w_2)}{P(w_2\ \text{and}\ w_1)} = \log C(w_1\,\text{and}) + \log C(\text{and}\,w_2) - \log C(w_2\,\text{and}) - \log C(\text{and}\,w_1)$$ {#eq-bigram}
 

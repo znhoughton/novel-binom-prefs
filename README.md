@@ -224,3 +224,29 @@ before data collection completes.
 `Writeup/writeup.qmd`, ACL format via the `_extensions/acl` extension. Render
 with `quarto render --to acl-pdf`; plain `--to pdf` silently bypasses the
 extension.
+
+## Experiment 3: preferences across training
+
+`Scripts/score_llm_prefs_checkpoints.py` scores the same items and the same
+measure at training checkpoints rather than only at the end.
+
+```bash
+python Scripts/score_llm_prefs_checkpoints.py --dry-run
+python Scripts/score_llm_prefs_checkpoints.py --models pythia-1.4b
+```
+
+Checkpoints are discovered from the Hub rather than hardcoded, so a repo that
+adds revisions is picked up automatically. Three naming schemes are handled:
+`stepN` branches (Pythia), `stage1-stepN` branches (OLMo 3), and `step-N` tags
+(the hand-trained models).
+
+Sampling is log-spaced, because learning curves move fastest early and evenly
+spaced steps would spend the budget where nothing changes. The first and last
+checkpoints are always kept. `tokens_per_step` converts steps to tokens seen,
+which is the x-axis worth plotting: a step is a different amount of data for
+different models, so the comparison of interest is at matched tokens.
+
+Currently 9 models expose usable checkpoints (Pythia x5, OLMo-3-7B, BabyLM x3),
+giving 127 checkpoint-scorings at the default of 15 per model. Each is 46,716
+sequences, so this is a substantial job: run it on the H100 box rather than
+locally.
