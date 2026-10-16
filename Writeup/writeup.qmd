@@ -1,0 +1,314 @@
+---
+title: "Abstract Word Order Preferences for Novel Binomials in Language Models and People"
+acl-mode: review
+code-url: https://github.com/znhoughton/novel-binom-prefs
+format:
+  acl-pdf:
+    keep-tex: true
+    cite-method: natbib
+  html: default
+editor: visual
+author:
+  - name:
+      literal: Zachary Nicholas Houghton
+    email: znhoughton@ucdavis.edu
+    affiliations:
+      - name: University of California, Davis
+  - name:
+      literal: Kenji Sagae
+    affiliations:
+      - name: University of California, Davis
+  - name:
+      literal: Emily Morgan
+    affiliations:
+      - name: University of California, Davis
+
+abstract: |
+  PLACEHOLDER. Rewrite once the fits are in. The claim this version can
+  support differs from the ACL submission: the item set is larger (444 novel
+  binomials rather than 131), the model set spans 23 base models across six
+  families and two orders of magnitude of scale rather than four models, and
+  novelty is established against three corpora rather than one.
+
+bibliography: references.bib
+tbl-cap-location: bottom
+header-includes:
+  - \usepackage{float}
+execute:
+  echo: false
+  message: false
+  warning: false
+---
+
+```{r}
+#| label: setup
+#| include: false
+
+library(tidyverse)
+library(brms)
+library(tidybayes)
+library(kableExtra)
+
+ANALYSIS <- "../Analysis"
+setwd_safe <- function() invisible(NULL)
+
+## The loaders resolve their paths relative to Analysis/, so source them with
+## that as the working directory and then restore.
+local({
+  old <- setwd(ANALYSIS)
+  on.exit(setwd(old), add = TRUE)
+  source("load_llm_data.R", local = FALSE)
+  source("load_human_data.R", local = FALSE)
+})
+```
+
+```{r}
+#| label: load-data
+#| include: false
+
+llm <- local({
+  old <- setwd(ANALYSIS); on.exit(setwd(old), add = TRUE)
+  load_llm_data("../Data/llm-prefs")
+})
+
+N_ITEMS   <- length(unique(as.character(llm$scores$item_id)))
+N_MODELS  <- nrow(llm$coverage)
+N_PROMPTS <- length(unique(llm$scores$prompt_value))
+```
+
+# Introduction
+
+PLACEHOLDER. The framing of the ACL submission carries over: the debate over
+how much of a language model's output reflects learned linguistic
+generalisation rather than reproduction of its training data, and binomials as
+a test case with strong human baselines.
+
+What changes is the evidence available. Section @sec-datasets describes an item
+set roughly three times larger, screened for novelty against three corpora
+rather than one, and a model set that spans six families and two orders of
+magnitude of scale rather than four models from two families.
+
+# Background and Related Work
+
+PLACEHOLDER. Carries over from the ACL submission largely unchanged:
+abstractions in language models, abstractions in humans, and the present
+study's position relative to @houghton2025role.
+
+# Datasets {#sec-datasets}
+
+## Novel binomials
+
+We use `r N_ITEMS` novel binomials, each a plural Noun *and* Noun pair. An item
+counts as novel only if the phrase itself is unattested: following the screen
+in the ACL submission, we query four surface forms,
+
+> *word1 and word2*, *Word1 and word2*, *word2 and word1*, *Word2 and word1*
+
+and keep a pair only when all four return a count of zero.
+
+Two things differ from the earlier version of this work. First, the screen runs
+against the infini-gram index
+(`api.infini-gram.io`)<!-- TODO: cite Liu et al. 2024, infini-gram. Pull the
+official BibTeX from the ACL Anthology and add it to references.bib; it is the
+one work cited here that the submission's custom.bib did not contain. -->
+rather than a locally constructed n-gram corpus, which makes it reproducible
+without redistributing a derived copy of the training data. Second, and more
+importantly, **novelty is corpus-relative and we treat it as such.**
+
+The earlier screen ran against Dolma alone, which is the training corpus for
+the OLMo models but not for anything else. We therefore re-ran the identical
+screen against every corpus for which an index exists and a model in our set
+was trained on it:
+
+| Corpus | Models trained on it | Novel |
+|:--|:--|--:|
+| Dolma v1.7 | OLMo ×3 | 458/458 |
+| The Pile | Pythia ×7 | 444/458 |
+| BabyLM | hand-trained ×3 | 458/458 |
+
+: Novelty of the candidate item set by corpus. The Dolma figure independently
+reproduces the original screen. {#tbl-novelty}
+
+Fourteen candidate items are attested in the Pile, at counts of one or two in
+300B tokens, so single incidental occurrences rather than conventionalised
+phrases. They are **dropped for every model**, not only for the seven Pythia
+models that saw them, so that the item set is identical across all
+`r N_MODELS` models and the human participants. This costs 3.1% of items and
+keeps every cross-model comparison on the same material.
+
+GPT-2's WebText is not indexed, and the training corpora of Qwen3, Llama 3.2,
+Gemma 3 and Mistral are not disclosed, so for those ten models novelty rests on
+absence from Dolma, the Pile and BabyLM jointly rather than on their own
+training data. We state this as a limitation rather than a guarantee.
+
+## Abstract ordering preference
+
+As in the ACL submission, each binomial carries a value for the ten constraints
+of @morgan2015modeling, combined into a single abstract preference (AbsPref)
+through their fitted logistic model. Positive values favour the alphabetically
+first word, a neutral reference order. `Icon` is zero for every novel item here
+and so contributes nothing and is dropped from any model that estimates
+constraints individually.
+
+Constraints enter the models on their **raw scales**. Each is a signed
+difference whose zero means the two words are equal on that constraint, so
+centring would move the origin off the one interpretable point and tie it to the
+composition of this particular item set.
+
+## Corpus bigram log-odds {#sec-bigram}
+
+The ACL submission controlled for "bigram probabilities" to rule out surface
+co-occurrence as the driver of model preferences. That control needs restating,
+because the quantity it most naturally refers to is identically zero here: the
+trigram *word1 and word2* has a count of zero for every item **by
+construction**, since that is the novelty criterion.
+
+The informative quantity is built from the component bigrams, which are not
+zero. Under a first-order Markov model,
+
+$$\log \frac{P(w_1\ \text{and}\ w_2)}{P(w_2\ \text{and}\ w_1)} = \log C(w_1\,\text{and}) + \log C(\text{and}\,w_2) - \log C(w_2\,\text{and}) - \log C(\text{and}\,w_1)$$ {#eq-bigram}
+
+the unigram terms cancelling between the two orderings. Both transitions are
+required to build the phrase, so the counts multiply rather than sum, and a zero
+in either position collapses the estimate as it should. Counts carry a 0.5
+pseudocount, which is load-bearing rather than cosmetic for the small corpus.
+
+Because @eq-bigram is a contrast, multiplying every count by a constant cancels:
+corpus **size** is irrelevant and corpus **composition** is not. The control is
+therefore matched to each model's own training corpus where that corpus is
+known: Pythia against the Pile, the hand-trained models against BabyLM, and
+everything else against Dolma. That matching earns its keep. Dolma and the Pile
+agree closely over these items ($r = .95$, 88% sign agreement), both being
+scraped web text, while BabyLM, which is child-directed and transcribed speech,
+agrees with them only at $r = .64$.
+
+# Experiment 1: Novel Binomial Preferences
+
+## Methods
+
+### Language model predictions
+
+We score `r N_MODELS` base models, listed in @tbl-models. Instruction-tuned
+variants are excluded throughout: instruction tuning shifts sequence
+probabilities in ways that would confound a comparison across scale.
+
+```{r}
+#| label: tbl-models
+#| tbl-cap: "Models scored, by family and parameter count. All are base (non-instruct) checkpoints."
+
+llm$coverage %>%
+  transmute(Model = str_remove(as.character(model), "^.*/"),
+            Family = model_family,
+            `Params (M)` = params) %>%
+  arrange(`Params (M)`) %>%
+  kbl(booktabs = TRUE, longtable = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"))
+```
+
+For each item, the preference is the difference in summed token
+log-probability between the two orderings,
+
+$$\texttt{preference} = \log P(\text{prompt} + w_1\ \text{and}\ w_2) - \log P(\text{prompt} + w_2\ \text{and}\ w_1)$$ {#eq-pref}
+
+computed in each of `r N_PROMPTS` prompt contexts. The prompt is identical in
+both strings and so cancels in the difference. Sequence log-probabilities are
+not length normalised, for consistency with @houghton2025role.
+
+### Analyses
+
+For each model we fit two specifications, each in two arms. The first
+specification takes abstract preference as the predictor; the second takes the
+nine constraints that vary across these items, entered simultaneously. Each is
+fit once as stated and once with the corpus bigram log-odds of @sec-bigram
+added, giving four analyses per model.
+
+All are Bayesian mixed-effects models fit in **brms** [@burkner2017brms] with
+weak priors, four chains of 4,000 iterations, and sum contrasts.
+
+$$\texttt{preference} \sim \texttt{AbsPref} + (\texttt{AbsPref} \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m1}
+
+$$\texttt{preference} \sim \texttt{AbsPref} + \texttt{BigramLogOdds} + (\texttt{AbsPref} \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m2}
+
+$$\texttt{preference} \sim \sum_{k} \texttt{Constraint}_k + (1 \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m3}
+
+$$\texttt{preference} \sim \sum_{k} \texttt{Constraint}_k + \texttt{BigramLogOdds} + (1 \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m4}
+
+Two departures from the ACL submission are worth stating. First, the bigram
+control enters **additively** rather than as an interaction with AbsPref. The
+question the control exists to answer is whether abstract preference survives
+once surface statistics are in the model, which is what an additive term tests;
+an interaction asks the different question of whether the AbsPref effect varies
+with bigram probability, and spends a parameter on it. Second, we retain all
+nine varying constraints rather than dropping those with the highest variance
+inflation. Collinearity among constraints inflates intervals but does not bias
+the estimates, and dropping constraints changes what the remaining coefficients
+mean.
+
+## Results
+
+PLACEHOLDER: fits in progress. This section reads from the cached fits in
+`Analysis/models/` and will populate once they complete. Nothing is reported
+here until then.
+
+# Experiment 2: Human Judgments
+
+## Methods
+
+### Procedure
+
+Participants complete a two-alternative forced choice task, choosing the
+ordering that sounds more natural. Items and the two options are both presented
+in randomised order.
+
+One procedural change from the ACL submission is material to the analysis. In
+that version the alphabetical ordering was **always displayed on the left**, so
+any left/right response bias was confounded with the alphabetical contrast and
+could not be estimated. The current build assigns the side in balanced pairs:
+each successive pair of trials places the alphabetical option on each side once,
+in random order, so the split is exactly even over any even number of trials and
+off by one over an odd number. The side shown is recorded per trial, which makes
+side bias an estimable nuisance effect rather than an unmeasured confound.
+
+### Analyses
+
+As in Experiment 1, abstract preference and the individual constraints are each
+fit with and without the bigram control. The outcome is the binary choice.
+
+Two nuisance predictors ride along in every model: position in the run, and
+which side the alphabetical ordering was shown on. Both enter as fixed effects
+with by-participant random slopes. Left and right are the complete set of sides
+rather than a sample from a population of sides, which is what makes side a
+fixed effect; the by-participant slope is the random part, and is the quantity
+of interest in any case, since it asks whether individual people carry a side
+bias.
+
+Random effects are maximal in the sense of @barr2013random, subject to the
+constraint that a predictor can take a random slope only for a grouping factor
+within which it varies. The constraints are item properties and so are constant
+within item: they can take by-participant slopes but not by-item ones. Side and
+trial position vary within both and take slopes for both.
+
+$$\texttt{chose alphabetical} \sim \texttt{AbsPref} + \texttt{trial} + \texttt{side} + (\texttt{AbsPref} + \texttt{trial} + \texttt{side} \mid \text{Participant}) + (\texttt{trial} + \texttt{side} \mid \text{Item})$$ {#eq-h1}
+
+## Results
+
+PLACEHOLDER: data collection in progress.
+
+# Experiment 3: Preferences Across Training
+
+NOT YET IMPLEMENTED. The ACL submission tracked OLMo-7B's preferences across
+seven checkpoints. The scoring script supports checkpoint revisions, and both
+the OLMo and Pythia families publish checkpoints, so this is a matter of
+compute rather than method. See the note in the README.
+
+# Limitations
+
+PLACEHOLDER. Carries over from the ACL submission, plus two additions: novelty
+for ten of the `r N_MODELS` models rests on absence from three corpora rather
+than their own undisclosed training data, and a single construction in a single
+language remains the main scope limitation.
+
+# References {.unnumbered}
+
+::: {#refs}
+:::

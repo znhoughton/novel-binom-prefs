@@ -1,0 +1,14 @@
+version: 1.0.0
+quarto-required: ">=1.2.0"
+contributes:
+  formats:
+    pdf:
+      template: template.tex
+      pdf-engine: pdflatex
+      cite-method: natbib
+      filters:
+        - at: post-quarto
+          path: longtable-bottomrule.lua
+      format-resources:
+        - acl.sty
+        - acl_natbib.bst

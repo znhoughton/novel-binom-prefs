@@ -26,3 +26,10 @@ Experiment/
 # the derived CSVs (bigram_logodds_*.csv, novelty_*.csv) are the durable record.
 Data/.bigram_count_cache.json
 Data/.novelty_cache_*.json
+
+# Quarto render artefacts
+Writeup/*.pdf
+Writeup/*.tex
+Writeup/*.html
+Writeup/*_files/
+Writeup/.quarto/
