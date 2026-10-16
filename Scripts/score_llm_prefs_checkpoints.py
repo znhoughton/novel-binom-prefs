@@ -64,6 +64,12 @@ OUT_DIR      = str(PROJECT_ROOT / "Data" / "llm-prefs-checkpoints")
 #
 # tokens_per_step is seq_len x global batch, taken from each model's published
 # training configuration. Pythia is uniform across sizes (2048 x 1024).
+#
+# Scope: the hand-trained BabyLM models, the Pythia sizes that match them
+# (160m/410m/1.4b against 125m/350m/1.3b), and one OLMo. The point of the
+# comparison is BabyLM against a same-size model trained on far more data, so
+# Pythia sizes with no BabyLM counterpart are not needed; 2.8b and 6.9b are
+# therefore left out rather than scored and discarded.
 CHECKPOINT_CONFIGS: Dict[str, Dict[str, Any]] = {
     "EleutherAI/pythia-160m": {"family": "pythia", "params": 160,
                                "source": "step_branches", "tokens_per_step": 2_097_152},
@@ -71,11 +77,6 @@ CHECKPOINT_CONFIGS: Dict[str, Dict[str, Any]] = {
                                "source": "step_branches", "tokens_per_step": 2_097_152},
     "EleutherAI/pythia-1.4b": {"family": "pythia", "params": 1400,
                                "source": "step_branches", "tokens_per_step": 2_097_152},
-    "EleutherAI/pythia-2.8b": {"family": "pythia", "params": 2800,
-                               "source": "step_branches", "tokens_per_step": 2_097_152},
-    "EleutherAI/pythia-6.9b": {"family": "pythia", "params": 6900,
-                               "source": "step_branches", "tokens_per_step": 2_097_152,
-                               "large_model": True},
 
     "allenai/Olmo-3-1025-7B": {"family": "olmo", "params": 7000,
                                "source": "stage1_branches", "tokens_per_step": 8_388_608,
@@ -149,9 +150,23 @@ def score_checkpoint(model_name: str, cfg: Dict[str, Any], ckpt: Dict[str, Any],
             print(f"  {slug} @ {ckpt['checkpoint']}: complete, skipping")
             return
 
-    tokenizer = AutoTokenizer.from_pretrained(model_name, revision=ckpt["revision"])
+    # The tokenizer comes from the default branch, not the checkpoint revision:
+    # a model's vocabulary does not change during training, so pinning it to the
+    # revision buys nothing and exposes the run to incomplete per-branch configs.
+    # pythia-2.8b is the case in point. At step0 and step1000 its tokenizer
+    # reports eos_token = None, which made the pad fallback below a silent no-op
+    # and then failed with "Asking to pad but the tokenizer does not have a
+    # padding token". The same model's default branch and later steps are fine,
+    # and pythia-1.4b has eos at every revision, so this is a per-branch repo
+    # inconsistency rather than anything about the model.
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
     if tokenizer.pad_token is None:
-        tokenizer.pad_token = tokenizer.eos_token
+        tokenizer.pad_token = tokenizer.eos_token or tokenizer.unk_token
+    if tokenizer.pad_token is None:
+        # Padded positions are masked out of the summed log-probability, so the
+        # identity of the pad token cannot affect a score. Any in-vocabulary id
+        # is therefore safe as a last resort.
+        tokenizer.pad_token_id = 0
     tokenizer.padding_side = "right"
 
     os.makedirs(_base.HF_CACHE_DIR, exist_ok=True)
