@@ -45,7 +45,7 @@ which are the same ones used in LLM-Ordering-Preferences:
 LLM_DIR    <- "../Data/llm-prefs"
 HUMAN_DIR  <- "../Data/human-responses"
 MIN_CHECKS <- 8
-ITER <- 6000; WARMUP <- 3000; CHAINS <- 4; CORES <- 4
+ITER <- 4000; WARMUP <- 2000; CHAINS <- 4; CORES <- 4
 SEED <- 964
 
 ## Fitting every model takes hours. Set this to a character vector of model names

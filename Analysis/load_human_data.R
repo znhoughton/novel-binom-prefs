@@ -155,6 +155,19 @@ load_human_data <- function(path = "../Data/human-responses",
                                       TRUE ~ NA_real_)
     )
 
+  ## A directory is read whole, so an old export left beside a newer one that
+  ## supersedes it would silently double every shared participant's trials.
+  ## Each (participant, trial position) should occur exactly once.
+  dupes <- dat %>%
+    count(participant, trial_num) %>%
+    filter(n > 1)
+  if (nrow(dupes)) {
+    stop(nrow(dupes), " duplicated (participant, trial) row(s) across the files in ",
+         path, ". Affected participant(s): ",
+         paste(unique(dupes$participant), collapse = ", "),
+         ". Two exports probably cover the same session; keep only the newest.")
+  }
+
   n_no_response <- sum(is.na(dat$alpha_answer))
   if (n_no_response > 0) {
     message("dropping ", n_no_response,

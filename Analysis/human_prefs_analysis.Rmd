@@ -39,7 +39,7 @@ Two differences from the source script are worth stating up front:
 ```{r config}
 DATA_DIR   <- "../Data/human-responses"   # drop Pavlovia .csv files here
 MIN_CHECKS <- 8                           # of 10 attention checks
-ITER <- 6000; WARMUP <- 3000; CHAINS <- 4; CORES <- 4
+ITER <- 4000; WARMUP <- 2000; CHAINS <- 4; CORES <- 4
 SEED <- 964
 
 ## Sum coding for every factor that enters a model matrix, so the intercept is
@@ -123,10 +123,11 @@ d$checks %>%
 
 ## Side-bias check
 
-`alpha_side` records which side the alphabetical order was shown on. It is
-balanced 51/51 within each participant by construction, so this is a check that
-the manipulation did what it claims, and that participants are not simply
-clicking a preferred side.
+`alpha_side` records which side the alphabetical order was shown on. The
+experiment assigns it in balanced pairs, so across an even number of trials the
+split is exactly even and over an odd number it is off by one (163 trials came
+out 82/81 in the first participant). This is a check that the manipulation did
+what it claims, and that participants are not simply clicking a preferred side.
 
 ```{r side-bias}
 trials %>%
@@ -152,11 +153,13 @@ estimated rather than left in the residual. `alpha_side_c` is which side the
 alphabetical order was drawn on, centred (left −0.5, right +0.5).
 
 Both go in as **fixed** effects with by-participant random slopes, not as
-grouping factors. `alpha_side` has two levels, and a two-level factor cannot be
-a random-effect grouping term: there is no population of sides to generalise
-over, and the variance is unidentifiable. The by-participant slope is the part
-that is genuinely random, and it is the quantity of interest anyway, since it
-asks whether individual people carry a side bias.
+grouping factors. Left and right are the complete set of sides, not a sample
+from a population of sides to generalise over, which is what makes `alpha_side`
+a fixed effect. (A two-level grouping term is estimable in a Bayesian fit, it is
+just dominated by the prior, so the practical objection and the conceptual one
+point the same way.) The by-participant slope is the genuinely random part, and
+it is the quantity of interest anyway, since it asks whether individual people
+carry a side bias.
 
 ```{r control-terms}
 ## alpha_side is NA for anything collected before the counterbalancing was added
