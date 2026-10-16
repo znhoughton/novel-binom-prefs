@@ -73,6 +73,59 @@ read_pavlovia_csv <- function(path) {
 }
 
 
+#' Recover the canonical item_id from the word pair.
+#'
+#' The Pavlovia export's `item_id` column is not reliable: on a minority of
+#' trials it carries a bare number instead of the conditions file's nov_XXX /
+#' check_XX id. It affects every participant (22 of 163 trials for the first
+#' post-counterbalancing one) and is not a parsing artefact, since those rows
+#' are otherwise perfectly aligned and `Alpha == word1 + " and " + word2` holds
+#' throughout the file.
+#'
+#' What is always correct is the word pair, and every affected pair resolves to
+#' exactly one conditions-file row. So the id is rebuilt by joining on
+#' (word1, word2) rather than trusting the column. Without this the affected
+#' trials fail to join against the item codings and disappear silently, which
+#' at 14% of a participant's data would be a serious loss.
+#'
+#' @param df         trial rows carrying word1 and word2
+#' @param items_csv  conditions file; resolved like load_llm_data does
+recover_item_id <- function(df, items_csv = NULL) {
+  if (is.null(items_csv)) {
+    candidates <- c("../Experiment/novel_binoms_conditions.csv",
+                    "../Data/novel_binoms_conditions.csv")
+    items_csv <- candidates[file.exists(candidates)][1]
+    if (is.na(items_csv)) stop("conditions file not found")
+  }
+  key <- read_csv(items_csv, show_col_types = FALSE, progress = FALSE) %>%
+    select(item_id_canonical = item_id, word1, word2)
+
+  dup <- key %>% count(word1, word2) %>% filter(n > 1)
+  if (nrow(dup)) {
+    stop(nrow(dup), " word pair(s) map to more than one item_id in ", items_csv,
+         "; the pair cannot be used as a key.")
+  }
+
+  out <- df %>%
+    left_join(key, by = c("word1", "word2"))
+
+  unmatched <- sum(is.na(out$item_id_canonical))
+  if (unmatched) {
+    stop(unmatched, " trial(s) have a word pair that is not in ", items_csv)
+  }
+
+  n_fixed <- sum(out$item_id != out$item_id_canonical, na.rm = TRUE)
+  if (n_fixed) {
+    message("recovered item_id from the word pair for ", n_fixed, " of ",
+            nrow(out), " trials (export carried a numeric id)")
+  }
+
+  out %>%
+    mutate(item_id = item_id_canonical) %>%
+    select(-item_id_canonical)
+}
+
+
 #' Load and score the pilot/experiment responses.
 #'
 #' @param path          either a Pavlovia database export (a single .csv) or a
@@ -222,7 +275,10 @@ load_human_data <- function(path = "../Data/human-responses",
   ## --- novel items, the modelling set ---------------------------------------
   trials <- dat %>%
     filter(is_filler == 0, participant %in% keepers) %>%
+    recover_item_id() %>%
+    drop_non_novel() %>%
     add_abs_pref() %>%
+    add_bigram_logodds() %>%
     mutate(participant = factor(participant),
            Item = factor(Item),
            ## Standardised so its coefficient is comparable with the others and

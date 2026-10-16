@@ -64,6 +64,10 @@ options(contrasts = c("contr.sum", "contr.sum"))
 ## brms reads cached fits from `file=` without refitting, so models estimated
 ## before this option was set keep their old parameterisation. Clear models/ to
 ## re-estimate under sum coding.
+## Defined properly once the human data is loaded; defaulted here so a chunk
+## option can never be evaluated before it exists.
+human_ready <- FALSE
+
 dir.create("models", showWarnings = FALSE)
 set.seed(SEED)
 ```
@@ -92,22 +96,38 @@ abstract preference either way, which is the bias term: a model that simply like
 whichever order it saw first, or alphabetical order as a spelling artefact, shows
 up here rather than in the slope.
 
+Each specification is fit twice: once as stated, and once with the corpus
+bigram log-odds added. The bigram arm is the surface-statistics control. The
+trigram "word1 and word2" is zero for every item by construction, so the
+strongest available n-gram baseline is built from the component bigrams
+(`Scripts/compute_bigram_logodds.py`), corpus-matched per family: Pythia against
+the Pile, the hand-trained models against BabyLM, everything else against Dolma.
+
+If an effect survives the bigram arm, it is not reducible to the corpus's
+positional statistics. That is the comparison the LOO table below is for.
+
 ```{r m-abspref, results="hide"}
-## One fit per model. `file =` caches each to models/, so an interrupted run
-## resumes rather than refitting everything.
-fit_abspref <- function(model_name) {
+## One fit per model per arm. `file =` caches each to models/, so an interrupted
+## run resumes rather than refitting everything, and the two arms never collide
+## because the bigram arm carries its own filename prefix.
+fit_abspref <- function(model_name, with_bigram = FALSE) {
   d <- scores %>% filter(model == model_name)
+  rhs <- if (with_bigram) "AbsPref_c + bigram_logodds_z" else "AbsPref_c"
+  f <- as.formula(paste("preference ~", rhs,
+                        "+ (AbsPref_c | prompt_value) + (1 | Item)"))
   brm(
-    preference ~ AbsPref_c + (AbsPref_c | prompt_value) + (1 | Item),
-    data = d,
-    family = gaussian(),
+    f, data = d, family = gaussian(),
     iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
-    file = file.path("models", paste0("llm_abspref_", make.names(model_name)))
+    file = file.path("models", paste0(if (with_bigram) "llm_abspref_bg_"
+                                      else "llm_abspref_",
+                                      make.names(model_name)))
   )
 }
 
-model_names <- levels(droplevels(scores$model))
-abspref_fits <- set_names(map(model_names, fit_abspref), model_names)
+model_names  <- levels(droplevels(scores$model))
+abspref_fits    <- set_names(map(model_names, fit_abspref), model_names)
+abspref_bg_fits <- set_names(map(model_names, fit_abspref, with_bigram = TRUE),
+                             model_names)
 ```
 
 ```{r abspref-coefs}
@@ -135,6 +155,68 @@ abspref_coefs %>%
   select(model, model_family, params, median, q2.5, q97.5, pct_above_zero) %>%
   knitr::kable(digits = 3,
                caption = "Sensitivity to abstract preference, one row per model.")
+```
+
+## Does abstract preference survive the bigram control?
+
+The question the second arm exists to answer. If `AbsPref_c` keeps its
+coefficient once the corpus's positional statistics are in the model, it is
+measuring something the n-gram baseline does not capture. If it collapses, the
+apparent constraint sensitivity was surface statistics all along.
+
+```{r abspref-bigram-compare}
+bg_coefs <- imap_dfr(abspref_bg_fits, function(fit, model_name) {
+  as_draws_df(fit) %>%
+    select(any_of(c("b_AbsPref_c", "b_bigram_logodds_z"))) %>%
+    pivot_longer(everything(), names_to = "term", values_to = "estimate") %>%
+    group_by(term) %>%
+    summarise(median = median(estimate),
+              q2.5 = quantile(estimate, 0.025),
+              q97.5 = quantile(estimate, 0.975),
+              .groups = "drop") %>%
+    mutate(model = model_name)
+}) %>% left_join(model_meta, by = "model")
+
+abspref_coefs %>%
+  filter(term == "b_AbsPref_c") %>%
+  select(model, params, abspref_alone = median) %>%
+  left_join(bg_coefs %>% filter(term == "b_AbsPref_c") %>%
+              select(model, abspref_with_bigram = median), by = "model") %>%
+  left_join(bg_coefs %>% filter(term == "b_bigram_logodds_z") %>%
+              select(model, bigram = median), by = "model") %>%
+  mutate(shrinkage = 1 - abspref_with_bigram / abspref_alone) %>%
+  arrange(params) %>%
+  knitr::kable(digits = 3,
+               caption = "AbsPref alone vs with the bigram control, and the
+                          bigram coefficient itself. `shrinkage` is the
+                          proportion of the AbsPref effect the control absorbs;
+                          near 0 means the two are measuring different things.")
+```
+
+```{r abspref-bigram-loo, results="hide"}
+## Does adding the bigram term improve prediction? Both arms are fit to the same
+## rows, so LOO is comparable within a model.
+abspref_loo <- imap_dfr(model_names %>% set_names(), function(m, .) {
+  a  <- add_criterion(abspref_fits[[m]],    "loo")
+  ab <- add_criterion(abspref_bg_fits[[m]], "loo")
+  cmp <- loo_compare(a, ab)
+  tibble(model = m,
+         better = rownames(cmp)[1],
+         elpd_diff = cmp[2, "elpd_diff"],
+         se_diff   = cmp[2, "se_diff"])
+})
+```
+
+```{r abspref-loo-table}
+abspref_loo %>%
+  mutate(better = recode(better, a = "AbsPref alone", ab = "with bigram")) %>%
+  left_join(model_meta, by = "model") %>%
+  arrange(params) %>%
+  select(model, params, better, elpd_diff, se_diff) %>%
+  knitr::kable(digits = 2,
+               caption = "LOO comparison of the two arms. A difference smaller
+                          than about twice its standard error is not a
+                          meaningful preference either way.")
 ```
 
 ## Does sensitivity scale?
@@ -230,27 +312,28 @@ dropped because every novel item is coded 0.
 
 ```{r m-constraints, results="hide"}
 constraint_terms <- c("Form", "Percept", "Culture", "Power", "Intense",
-                      "Freq_z", "Len_z", "Lapse_z", "BStress")
-
-f_constraints <- as.formula(paste(
-  "preference ~", paste(constraint_terms, collapse = " + "),
-  "+ (1 | prompt_value) + (1 | Item)"
-))
+                      "Freq", "Len", "Lapse", "BStress")
 
 ## Random intercepts only for prompt. The human script gives its reason (a 9x9
 ## slope correlation routinely fails to converge) and it applies here too.
-fit_constraints <- function(model_name) {
+fit_constraints <- function(model_name, with_bigram = FALSE) {
   d <- scores %>% filter(model == model_name)
+  terms <- if (with_bigram) c(constraint_terms, "bigram_logodds_z")
+           else constraint_terms
+  f <- as.formula(paste("preference ~", paste(terms, collapse = " + "),
+                        "+ (1 | prompt_value) + (1 | Item)"))
   brm(
-    f_constraints,
-    data = d,
-    family = gaussian(),
+    f, data = d, family = gaussian(),
     iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
-    file = file.path("models", paste0("llm_constraints_", make.names(model_name)))
+    file = file.path("models", paste0(if (with_bigram) "llm_constraints_bg_"
+                                      else "llm_constraints_",
+                                      make.names(model_name)))
   )
 }
 
-constraint_fits <- set_names(map(model_names, fit_constraints), model_names)
+constraint_fits    <- set_names(map(model_names, fit_constraints), model_names)
+constraint_bg_fits <- set_names(map(model_names, fit_constraints, with_bigram = TRUE),
+                                model_names)
 ```
 
 ```{r constraint-coefs}
@@ -290,11 +373,25 @@ The two sides are on different scales, so this is about sign and relative
 ordering, not magnitude.
 
 ```{r human-constraints}
-## Refits nothing: human_prefs_analysis.Rmd already cached this model, and
-## brm(file = ) reads it back when the file exists.
-trials_c <- d_human$trials %>%
-  mutate(across(c(Freq, Len, Lapse), ~ as.numeric(scale(.x)), .names = "{.col}_z"))
+## Refits nothing when human_prefs_analysis.Rmd has already cached the model;
+## brm(file = ) reads it back. But with only a handful of participants a
+## by-participant variance has nothing to estimate, so this is skipped rather
+## than fit on data that cannot support it. Everything downstream of it is
+## guarded on `human_ready`.
+MIN_PARTICIPANTS_FOR_FIT <- 10
+trials_c <- d_human$trials
+n_participants <- nlevels(droplevels(trials_c$participant))
+human_ready <- n_participants >= MIN_PARTICIPANTS_FOR_FIT ||
+               file.exists("models/m_constraints.rds")
 
+if (!human_ready) {
+  message("human constraint model skipped: ", n_participants,
+          " participant(s), need ", MIN_PARTICIPANTS_FOR_FIT,
+          ". The LLM-side results above are unaffected.")
+}
+```
+
+```{r human-constraints-fit, eval = human_ready}
 f_human <- as.formula(paste(
   "alpha_answer ~", paste(constraint_terms, collapse = " + "),
   "+ (1 | participant) + (1 | Item)"
@@ -314,7 +411,7 @@ human_coefs <- as_draws_df(m_constraints_human) %>%
   summarise(human_median = median(estimate), .groups = "drop")
 ```
 
-```{r weight-agreement}
+```{r weight-agreement, eval = human_ready}
 llm_constraint_coefs %>%
   inner_join(human_coefs, by = "term") %>%
   group_by(model, model_family, params) %>%
@@ -330,7 +427,7 @@ llm_constraint_coefs %>%
                           track the human ones, across the nine constraints.")
 ```
 
-```{r plot-weights, fig.width=9, fig.height=8}
+```{r plot-weights, fig.width=9, fig.height=8, eval = human_ready}
 llm_constraint_coefs %>%
   inner_join(human_coefs, by = "term") %>%
   ggplot(aes(x = human_median, y = median)) +
@@ -347,7 +444,7 @@ llm_constraint_coefs %>%
 A model that has learned the human constraint profile puts the points on an
 upward line through the origin. One that has learned a different profile puts
 them somewhere else, and *which* constraints move is the interesting part:
-`Freq_z` and `Len_z` are recoverable from distributional statistics alone, while
+`Freq` and `Len` are recoverable from distributional statistics alone, while
 `Power`, `Culture` and `Percept` are semantic and have no direct surface cue.
 
 # Prompt sensitivity

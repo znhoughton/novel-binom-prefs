@@ -60,7 +60,23 @@ load_llm_data <- function(data_dir  = "../Data/llm-prefs",
   items <- read_csv(items_csv, show_col_types = FALSE, progress = FALSE) %>%
     filter(is_filler == 0) %>%
     select(item_id, Alpha, all_of(CONSTRAINTS)) %>%
+    drop_non_novel() %>%
     add_abs_pref()
+
+  ## The bigram control is corpus-matched per model family, so it varies by
+  ## (corpus, item) rather than by item alone: Pythia against the Pile, OLMo
+  ## against Dolma, the hand-trained models against BabyLM, everything else
+  ## against Dolma. Built as a long table and joined on the model's corpus.
+  corpora <- unique(bigram_corpus_for(unique(raw$model_family)))
+  bigram_long <- map_dfr(corpora, function(cp) {
+    tibble(item_id = items$item_id) %>%
+      add_bigram_logodds(corpus = cp) %>%
+      mutate(bigram_corpus = cp)
+  })
+  message("bigram control by corpus: ",
+          paste(sprintf("%s (%d items)", corpora,
+                        as.integer(table(bigram_long$bigram_corpus)[corpora])),
+                collapse = ", "))
 
   ## Two files can carry the same model: a renamed copy, a backup left in the
   ## directory, a half-finished rerun. Concatenating them silently double-counts
@@ -76,32 +92,35 @@ load_llm_data <- function(data_dir  = "../Data/llm-prefs",
          ". Keep one CSV per model and move backups elsewhere.")
   }
 
-  missing_codings <- setdiff(unique(raw$item_id), items$item_id)
-  if (length(missing_codings)) {
-    stop(length(missing_codings), " scored item(s) are not in ", items_csv,
-         ", first: ", missing_codings[[1]])
-  }
+  ## Scored rows for dropped items go too, so every model is fit on the same set.
+  raw <- raw %>% filter(item_id %in% items$item_id)
 
-  ## Continuous predictors are standardised over the 458 unique items. The human
-  ## script scales over trials instead, where an item appears once per
-  ## participant; with a roughly balanced design the two are near-identical, but
-  ## they are not guaranteed to agree to the last decimal.
-  items <- items %>%
-    mutate(across(c(Freq, Len, Lapse), ~ as.numeric(scale(.x)), .names = "{.col}_z"))
+  ## Constraints stay on their raw scales, matching human_prefs_analysis.Rmd.
+  ## Each is a signed difference whose zero means the two words are equal on that
+  ## constraint, so centring would move the origin off the interpretable point
+  ## and tie it to this item set. Len and Lapse already have SDs near 1; Freq is
+  ## left in log-ratio units.
 
   scores <- raw %>%
     left_join(items, by = "item_id", suffix = c("", ".items")) %>%
+    mutate(bigram_corpus = bigram_corpus_for(model_family)) %>%
+    left_join(bigram_long, by = c("item_id", "bigram_corpus")) %>%
     mutate(
       p_alpha = plogis(preference),
       model   = factor(model),
       Item    = factor(Item),
       prompt_value = factor(prompt_value)
     ) %>%
-    ## Log-odds magnitudes differ by an order of magnitude across models, which
-    ## makes raw coefficients incomparable between them. The z-scored version is
-    ## for cross-model comparison only; single-model fits use `preference`.
+    ## Spread differs substantially across models (sd 1.46 to 3.07), so on raw
+    ## scales a wide-spread model mechanically earns a smaller coefficient when
+    ## its preference is used as a predictor. Dividing by each model's own sd
+    ## makes those coefficients per-sd and comparable.
+    ##
+    ## Scaled but not centred: `preference` is a log-odds, so 0 means the model
+    ## favours neither ordering, and that origin is worth keeping. sd() rather
+    ## than scale(..., center = FALSE), which divides by the root mean square.
     group_by(model) %>%
-    mutate(preference_z = as.numeric(scale(preference))) %>%
+    mutate(preference_z = preference / sd(preference)) %>%
     ungroup()
 
   coverage <- scores %>%
@@ -130,6 +149,8 @@ load_llm_data <- function(data_dir  = "../Data/llm-prefs",
               preference    = mean(preference),
               .groups       = "drop") %>%
     left_join(items, by = "item_id") %>%
+    mutate(bigram_corpus = bigram_corpus_for(model_family)) %>%
+    left_join(bigram_long, by = c("item_id", "bigram_corpus")) %>%
     mutate(p_alpha = plogis(preference))
 
   list(scores = scores, items = item_level, coverage = coverage)

@@ -284,14 +284,18 @@ asks which constraints people are actually sensitive to, rather than assuming th
 Morgan & Levy weighting.
 
 ```{r constraint-data}
-## Continuous predictors are standardised so their coefficients are comparable
-## with the +/-1 coded categorical ones. The categorical constraints are already
-## on a common scale and are left alone.
-trials_c <- trials %>%
-  mutate(across(c(Freq, Len, Lapse), ~ as.numeric(scale(.x)), .names = "{.col}_z"))
+## Every constraint enters on its raw scale. Each is a signed difference whose
+## zero means "the two words are equal on this constraint", so centring would
+## move the origin off the one interpretable point and make the intercept depend
+## on the composition of this particular item set. Form, Percept, Culture,
+## Power, Intense and BStress are -1/0/+1; Len and Lapse are signed differences
+## (-3..+4 and -3..+3) whose SDs are already near 1; Freq is a log frequency
+## ratio, left in log units so its coefficient reads per unit of log ratio.
+## Icon is dropped: it is 0 for every novel item and has no variance.
+trials_c <- trials
 
 constraint_terms <- c("Form", "Percept", "Culture", "Power", "Intense",
-                      "Freq_z", "Len_z", "Lapse_z", "BStress")
+                      "Freq", "Len", "Lapse", "BStress")
 ```
 
 ```{r m-constraints}
@@ -317,7 +321,7 @@ fixef(m_constraints)
 ```{r m-constraints-slopes}
 ## The CoNLL specification: random slopes over the six constraints it modelled.
 ## Kept for comparability with that paper.
-conll_terms <- c("Culture", "Power", "Freq_z", "Len_z", "Intense", "Percept")
+conll_terms <- c("Culture", "Power", "Freq", "Len", "Intense", "Percept")
 
 f_slopes <- as.formula(paste(
   "alpha_answer ~", paste(c(conll_terms, ctrl_terms), collapse = " + "),
