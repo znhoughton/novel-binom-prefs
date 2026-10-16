@@ -21,3 +21,8 @@ Experiment/
 # Run logs. score_llm_prefs.py writes one per nohup invocation on the server,
 # and they are mostly tqdm redraw noise. The CSVs are the durable record.
 *.log
+
+# infini-gram query caches. Intermediate state that churns while a check runs;
+# the derived CSVs (bigram_logodds_*.csv, novelty_*.csv) are the durable record.
+Data/.bigram_count_cache.json
+Data/.novelty_cache_*.json
