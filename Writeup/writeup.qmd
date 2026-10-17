@@ -190,9 +190,17 @@ agrees with them only at $r = .64$.
 
 ### Language model predictions
 
-We score `r N_MODELS` base models, listed in @tbl-models. Instruction-tuned
-variants are excluded throughout: instruction tuning shifts sequence
-probabilities in ways that would confound a comparison across scale.
+We score `r N_MODELS` base models, listed in @tbl-models. Two inclusion
+criteria apply.
+
+Instruction-tuned variants are excluded throughout: instruction tuning shifts
+sequence probabilities in ways that would confound a comparison across scale.
+
+A family is included only if it offers **at least three model sizes**. The
+design rests on separating scale from training data, which requires varying
+size within a family while holding data fixed; a family represented by a single
+model cannot contribute to that comparison, and its estimate is confounded
+between the two. This leaves five families spanning two orders of magnitude.
 
 ```{r}
 #| label: tbl-models
