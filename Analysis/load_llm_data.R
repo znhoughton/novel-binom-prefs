@@ -157,6 +157,95 @@ load_llm_data <- function(data_dir  = "../Data/llm-prefs",
 }
 
 
+#' Load the per-checkpoint scores for Experiment 3.
+#'
+#' One CSV per (model, checkpoint) from Scripts/score_llm_prefs_checkpoints.py.
+#' Same items, same measure and same 444-item exclusion as the final-checkpoint
+#' data, with `checkpoint`, `step` and `tokens` carried through.
+#'
+#' Models with fewer than `min_checkpoints` are dropped. A trajectory cannot be
+#' estimated from a handful of points, and a partially scored model would
+#' otherwise contribute a curve fit to whatever checkpoints happened to finish.
+#'
+#' @param data_dir        directory of per-checkpoint CSVs
+#' @param min_checkpoints models with fewer are dropped
+#' @return list(scores = one row per (model, checkpoint, prompt, item),
+#'              coverage = checkpoints and token range per model)
+load_checkpoint_data <- function(data_dir = "../Data/llm-prefs-checkpoints",
+                                 min_checkpoints = 8,
+                                 items_csv = NULL) {
+
+  if (is.null(items_csv)) {
+    candidates <- c("../Experiment/novel_binoms_conditions.csv",
+                    "../Data/novel_binoms_conditions.csv")
+    items_csv <- candidates[file.exists(candidates)][1]
+    if (is.na(items_csv)) stop("conditions file not found")
+  }
+
+  files <- list.files(data_dir, pattern = "\\.csv$", full.names = TRUE)
+  if (!length(files)) stop("no .csv files found in ", data_dir)
+  message("reading ", length(files), " checkpoint file(s)")
+
+  raw <- map_dfr(files, ~ read_csv(.x, show_col_types = FALSE, progress = FALSE))
+
+  items <- read_csv(items_csv, show_col_types = FALSE, progress = FALSE) %>%
+    filter(is_filler == 0) %>%
+    select(item_id, Alpha, all_of(CONSTRAINTS)) %>%
+    drop_non_novel() %>%
+    add_abs_pref()
+
+  corpora <- unique(bigram_corpus_for(unique(raw$model_family)))
+  bigram_long <- map_dfr(corpora, function(cp) {
+    tibble(item_id = items$item_id) %>%
+      add_bigram_logodds(corpus = cp) %>%
+      mutate(bigram_corpus = cp)
+  })
+
+  raw <- raw %>% filter(item_id %in% items$item_id)
+
+  ## Partially scored models cannot support a trajectory.
+  keep <- raw %>%
+    distinct(model, checkpoint) %>%
+    count(model) %>%
+    filter(n >= min_checkpoints)
+  dropped <- raw %>% distinct(model, checkpoint) %>% count(model) %>%
+    filter(n < min_checkpoints)
+  if (nrow(dropped)) {
+    message("dropping ", nrow(dropped), " model(s) with < ", min_checkpoints,
+            " checkpoints: ",
+            paste(sprintf("%s (%d)", str_remove(dropped$model, "^.*/"), dropped$n),
+                  collapse = ", "))
+  }
+
+  scores <- raw %>%
+    filter(model %in% keep$model) %>%
+    left_join(items, by = "item_id", suffix = c("", ".items")) %>%
+    mutate(bigram_corpus = bigram_corpus_for(model_family)) %>%
+    left_join(bigram_long, by = c("item_id", "bigram_corpus")) %>%
+    mutate(
+      model        = factor(model),
+      Item         = factor(Item),
+      prompt_value = factor(prompt_value),
+      ## Tokens seen, logged. Step 0 is a genuine zero, so it is shifted by one
+      ## token rather than dropped: an untrained checkpoint is the natural
+      ## baseline for a trajectory and discarding it would start the curve
+      ## after whatever the first training steps do.
+      log_tokens   = log10(tokens + 1)
+    )
+
+  coverage <- scores %>%
+    group_by(model, model_family, params) %>%
+    summarise(n_checkpoints = n_distinct(checkpoint),
+              min_tokens    = min(tokens),
+              max_tokens    = max(tokens),
+              n_items       = n_distinct(item_id),
+              .groups       = "drop") %>%
+    arrange(params)
+
+  list(scores = scores, coverage = coverage)
+}
+
+
 #' Join LLM item-level preferences to human item-level proportions.
 #'
 #' @param llm_items   the `items` element of load_llm_data()

@@ -1,0 +1,263 @@
+---
+title: "Ordering Preferences Across Training"
+subtitle: "Experiment 3: abstract preference as a function of tokens seen"
+author: "Zachary Houghton"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE,
+                      fig.width = 8, fig.height = 5, dpi = 150)
+```
+
+```{r libraries}
+library(tidyverse)
+library(brms)
+library(tidybayes)
+source("load_llm_data.R")
+```
+
+The same measure and the same 444 items as Experiment 1, scored at checkpoints
+across training rather than only at the end. The question is whether a model's
+sensitivity to abstract preference changes as it sees more data.
+
+This is estimated in **two stages**, and the reason is worth stating because a
+single pooled model is the more obvious choice and is the wrong one here.
+
+A checkpoint is not a repeated measurement of one model; it is a different model.
+Pooling checkpoints into one fit with tokens as a predictor makes the main
+effect of `AbsPref_c` an average sensitivity *across checkpoints*, which is an
+average over the arbitrary grid of checkpoints we happened to sample. Sample
+them differently and the number changes. It is a property of the sampling, not
+of anything in the world.
+
+So:
+
+- **Stage 1** fits each checkpoint on its own, with exactly the specification
+  Experiment 1 uses. Every coefficient means "this particular model's
+  sensitivity", and nothing is averaged across models that are not the same
+  model.
+- **Stage 2** takes those coefficients, with their standard errors, and asks
+  whether they move with training. It is fit **separately for each model**, so
+  no trajectory is shared across families trained on different data.
+
+Every quantity reported is interpretable, and the trajectory still gets a
+formal test rather than being read off a scatter.
+
+```{r config}
+CKPT_DIR <- "../Data/llm-prefs-checkpoints"
+ITER <- 4000; WARMUP <- 2000; CHAINS <- 4; CORES <- 4
+SEED <- 964
+
+## Basis dimension for the stage-2 smooths. Each model contributes ~14
+## checkpoints, so the mgcv default of k = 10 would fit ten basis functions to
+## fourteen points. Four leaves enough flexibility for a rise-then-fall without
+## chasing noise; POLY_FALLBACK switches to a quadratic if a smooth misbehaves.
+SMOOTH_K <- 4
+POLY_FALLBACK <- FALSE
+
+options(contrasts = c("contr.sum", "contr.sum"))
+dir.create("models", showWarnings = FALSE)
+set.seed(SEED)
+```
+
+# Data
+
+```{r load}
+ck <- load_checkpoint_data(CKPT_DIR)
+scores <- ck$scores
+```
+
+```{r coverage}
+ck$coverage %>%
+  mutate(model = str_remove(as.character(model), "^.*/"),
+         min_tokens = format(min_tokens, big.mark = ","),
+         max_tokens = format(max_tokens, big.mark = ",")) %>%
+  knitr::kable(caption = "Checkpoints scored per model, and the token range
+                          they span. `n_items` should be 444 throughout.")
+```
+
+# Stage 1: a coefficient per checkpoint
+
+Exactly the Experiment 1 AbsPref specification, fit independently at each
+checkpoint.
+
+```{r stage1, results="hide"}
+fit_checkpoint <- function(model_name, ckpt) {
+  d <- scores %>% filter(model == model_name, checkpoint == ckpt)
+  brm(
+    preference ~ AbsPref_c + (AbsPref_c | prompt_value) + (1 | Item),
+    data = d, family = gaussian(),
+    iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
+    file = file.path("models", paste0("ckpt_", make.names(model_name), "_", ckpt))
+  )
+}
+
+grid <- scores %>% distinct(model, checkpoint, tokens, log_tokens,
+                            model_family, params)
+
+stage1 <- pmap_dfr(list(grid$model, grid$checkpoint), function(m, ck_name) {
+  fit <- fit_checkpoint(m, ck_name)
+  s <- summary(fit)
+  tibble(model = as.character(m), checkpoint = ck_name,
+         est = s$fixed["AbsPref_c", "Estimate"],
+         se  = s$fixed["AbsPref_c", "Est.Error"],
+         lo  = s$fixed["AbsPref_c", "l-95% CI"],
+         hi  = s$fixed["AbsPref_c", "u-95% CI"],
+         ## The residual scale, which changes across training and is reported
+         ## alongside the coefficient for the reason given below.
+         sigma = s$spec_pars["sigma", "Estimate"])
+}) %>%
+  left_join(grid %>% mutate(model = as.character(model)),
+            by = c("model", "checkpoint"))
+```
+
+```{r stage1-table}
+stage1 %>%
+  mutate(name = str_remove(model, "^.*/")) %>%
+  arrange(params, tokens) %>%
+  transmute(model = name, tokens = format(tokens, big.mark = ","),
+            AbsPref = round(est, 2),
+            CI = sprintf("[%.2f, %.2f]", lo, hi),
+            sigma = round(sigma, 2)) %>%
+  knitr::kable(caption = "Stage 1. One row per checkpoint; each coefficient is
+                          that checkpoint's own sensitivity.")
+```
+
+## Why `sigma` is reported too
+
+The spread of `preference` changes across training: an untrained checkpoint
+produces a narrow, largely undifferentiated set of scores, and a trained one
+produces a wide one. A coefficient on the raw log-odds scale therefore grows
+partly because the outcome's variance grows, not only because sensitivity
+grows.
+
+```{r sigma-trajectory, fig.width=8, fig.height=4.5}
+stage1 %>%
+  mutate(name = str_remove(model, "^.*/")) %>%
+  ggplot(aes(tokens + 1, sigma, colour = name)) +
+  geom_line(alpha = .7) + geom_point(size = 1) +
+  scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
+  labs(x = "Tokens seen (log scale)", y = expression(sigma),
+       colour = NULL,
+       caption = "Residual scale of `preference` at each checkpoint.") +
+  theme_bw()
+```
+
+This is why the standardised trajectory below is the one to read for claims
+about sensitivity, and the raw one is shown for completeness.
+
+```{r standardise}
+## Coefficient per unit of the outcome's own spread, so a change across
+## checkpoints is a change in sensitivity rather than in variance. The SE is
+## scaled identically so stage 2 still weights by precision correctly.
+stage1 <- stage1 %>%
+  mutate(est_z = est / sigma,
+         se_z  = se  / sigma)
+```
+
+# Stage 2: does sensitivity move with training?
+
+One smooth per model, weighted by the precision of each stage-1 estimate. The
+`se()` term carries stage-1 uncertainty into stage 2 rather than treating the
+coefficients as if they were observed without error.
+
+```{r stage2, results="hide"}
+fit_trajectory <- function(model_name) {
+  d <- stage1 %>% filter(model == model_name)
+  rhs <- if (POLY_FALLBACK) "poly(log_tokens, 2)"
+         else sprintf("s(log_tokens, k = %d)", SMOOTH_K)
+  f <- bf(as.formula(paste("est_z | se(se_z, sigma = TRUE) ~", rhs)))
+  brm(
+    f, data = d, family = gaussian(),
+    iter = ITER, warmup = WARMUP, chains = CHAINS, cores = CORES, seed = SEED,
+    control = list(adapt_delta = 0.95),
+    file = file.path("models", paste0("traj_", make.names(model_name)))
+  )
+}
+
+model_names <- unique(as.character(stage1$model))
+traj_fits <- set_names(map(model_names, fit_trajectory), model_names)
+```
+
+```{r stage2-plot, fig.width=9, fig.height=6}
+## Posterior expectation of the trajectory on a fine grid, per model.
+traj_pred <- imap_dfr(traj_fits, function(fit, m) {
+  d <- stage1 %>% filter(model == m)
+  grid_m <- tibble(log_tokens = seq(min(d$log_tokens), max(d$log_tokens),
+                                    length.out = 80),
+                   se_z = 0)
+  fitted(fit, newdata = grid_m, re_formula = NA) %>%
+    as_tibble() %>%
+    bind_cols(grid_m) %>%
+    mutate(model = m)
+}) %>%
+  mutate(name = str_remove(model, "^.*/"))
+
+ggplot(traj_pred, aes(10^log_tokens, Estimate)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
+  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5), alpha = .18) +
+  geom_line(linewidth = .7) +
+  geom_pointrange(
+    data = stage1 %>% mutate(name = str_remove(model, "^.*/")),
+    aes(x = tokens + 1, y = est_z,
+        ymin = est_z - 1.96 * se_z, ymax = est_z + 1.96 * se_z),
+    size = .2, alpha = .6, inherit.aes = FALSE) +
+  facet_wrap(~ fct_reorder(name, traj_pred$model %>% match(model_names)),
+             scales = "free_x") +
+  scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
+  labs(x = "Tokens seen (log scale)",
+       y = "AbsPref sensitivity (per unit residual SD)",
+       caption = "Points are stage-1 estimates with 95% intervals; the band is
+                  the stage-2 posterior for the trajectory.") +
+  theme_bw()
+```
+
+```{r stage2-table}
+## Sensitivity at the first and last checkpoint, and the difference, read off
+## the fitted trajectory. The difference is the quantity that answers the
+## question; a credible interval excluding zero means the trajectory moved.
+traj_change <- imap_dfr(traj_fits, function(fit, m) {
+  d <- stage1 %>% filter(model == m)
+  ends <- tibble(log_tokens = c(min(d$log_tokens), max(d$log_tokens)), se_z = 0)
+  dr <- posterior_epred(fit, newdata = ends, re_formula = NA)
+  diff <- dr[, 2] - dr[, 1]
+  tibble(model = m,
+         first = median(dr[, 1]), last = median(dr[, 2]),
+         change = median(diff),
+         lo = quantile(diff, .025), hi = quantile(diff, .975),
+         pct_increase = 100 * mean(diff > 0))
+})
+
+traj_change %>%
+  mutate(name = str_remove(model, "^.*/")) %>%
+  left_join(ck$coverage %>% mutate(model = as.character(model)), by = "model") %>%
+  arrange(params) %>%
+  transmute(model = name, params,
+            `at first ckpt` = round(first, 2),
+            `at last ckpt`  = round(last, 2),
+            change = round(change, 2),
+            CI = sprintf("[%.2f, %.2f]", lo, hi),
+            `% > 0` = round(pct_increase, 1)) %>%
+  knitr::kable(caption = "Change in sensitivity from the first to the last
+                          checkpoint, from the fitted trajectory.")
+```
+
+A coefficient that is not resolved at an early checkpoint means the effect was
+not **detectable** there, which is not the same as its being absent. Early
+checkpoints produce less differentiated scores, as the `sigma` trajectory above
+shows directly, so an effect of a given size is harder to resolve against them.
+The standardised scale is what makes the comparison across checkpoints a
+comparison of sensitivity rather than of spread, but it does not make a wide
+early interval into evidence of absence.
+
+# Session info
+
+```{r session}
+sessionInfo()
+```
