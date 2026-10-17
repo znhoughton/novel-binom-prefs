@@ -217,19 +217,10 @@ MODEL_CONFIGS: Dict[str, Dict[str, Any]] = {
     "znhoughton/opt-babylm-350m-20eps-seed964": {"family": "babylm", "params":  350},
     "znhoughton/opt-babylm-1.3b-20eps-seed964": {"family": "babylm", "params": 1300},
 
-    # ── Modern families at 2 to 8B ───────────────────────────────────────────
+    # ── Qwen3 ────────────────────────────────────────────────────────────────
     "Qwen/Qwen3-1.7B-Base":      {"family": "qwen3",   "params": 1700},
     "Qwen/Qwen3-4B-Base":        {"family": "qwen3",   "params": 4000},
     "Qwen/Qwen3-8B-Base":        {"family": "qwen3",   "params": 8000, "large_model": True},
-    # `gated` reflects what the Hub actually enforces, checked anonymously by
-    # HEADing a weight file rather than by resolving the repo id: a gated repo's
-    # metadata resolves for anyone, so model_info() alone says nothing about
-    # whether the weights will download. Mistral-7B-v0.3 is ungated now whatever
-    # it was when this list was first written.
-    "meta-llama/Llama-3.2-3B":   {"family": "llama3",  "params": 3000, "gated": True},
-    "google/gemma-3-4b-pt":      {"family": "gemma3",  "params": 4000, "gated": True},
-    "mistralai/Mistral-7B-v0.3": {"family": "mistral", "params": 7000,
-                                  "large_model": True},
 
     # ── Off by default, uncomment to add ─────────────────────────────────────
     # A dense 1-epoch BabyLM run at 125m, useful as an epochs-held-constant
