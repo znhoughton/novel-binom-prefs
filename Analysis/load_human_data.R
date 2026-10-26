@@ -25,7 +25,18 @@ source("constraints.R")
 ## side-related effect is unestimable from their data. They are dropped rather
 ## than pooled, since keeping them would force the side term out of the model
 ## for everyone. Pass exclude = character(0) to analyse the pilot on its own.
-PILOT_PARTICIPANTS <- character(0)  # ids moved to untracked Analysis/.pilot_participants
+##
+## Their ids live in Analysis/.pilot_participants (one per line), which is not
+## in the repository: they are SONA ids, and hardcoding them here would publish
+## two of the very identifiers prepare_human_data.R exists to strip. The file is
+## only needed to process the raw exports, which are also not in the repository,
+## so a clone reading the de-identified data never consults this.
+PILOT_PARTICIPANTS <- local({
+  f <- "../Analysis/.pilot_participants"
+  if (!file.exists(f)) f <- ".pilot_participants"
+  if (!file.exists(f)) return(character(0))
+  trimws(readLines(f, warn = FALSE)) %>% (function(x) x[nzchar(x)])
+})
 
 
 #' Pull the chosen order out of PsychoPy's mouse.clicked_name field.
@@ -126,6 +137,51 @@ recover_item_id <- function(df, items_csv = NULL) {
 }
 
 
+PREPARED <- c(trials = "../Data/human-trials.csv",
+              checks = "../Data/human-checks.csv",
+              participants = "../Data/human-participants.csv")
+
+#' Load the de-identified human data that ships with the repository.
+#'
+#' `prepare_human_data.R` writes these from the raw Pavlovia exports, applying
+#' the same cleaning and exclusions as [load_human_data()] and relabelling every
+#' participant with an arbitrary code. The trials file is the exact set the brms
+#' models are fit on, so a fit from here reproduces a fit from the raw data.
+#'
+#' @return the same four-element list as [load_human_data()]
+load_human_prepared <- function(paths = PREPARED) {
+  missing <- paths[!file.exists(paths)]
+  if (length(missing)) {
+    stop("de-identified human data not found: ",
+         paste(basename(missing), collapse = ", "),
+         ". Run prepare_human_data.R from Analysis/ with the raw exports in ",
+         "Data/human-responses/.")
+  }
+  rd <- function(k) readr::read_csv(paths[[k]], show_col_types = FALSE,
+                                    progress = FALSE)
+  trials <- rd("trials")
+  checks <- rd("checks")
+  parts  <- rd("participants")
+
+  lv <- sort(unique(as.character(parts$participant)))
+  fct <- function(df) {
+    if (!"participant" %in% names(df)) return(df)
+    df$participant <- factor(as.character(df$participant), levels = lv)
+    df
+  }
+  trials <- fct(trials)
+  if ("Item" %in% names(trials)) trials$Item <- factor(trials$Item)
+
+  message("reading de-identified human data (", nrow(trials), " trials, ",
+          sum(parts$keep), " of ", nrow(parts), " participants retained)")
+
+  list(trials = trials,
+       checks = fct(checks),
+       participants = fct(parts %>% dplyr::select(-dplyr::any_of("reason"))),
+       excluded = fct(parts %>% dplyr::filter(!keep)))
+}
+
+
 #' Load and score the pilot/experiment responses.
 #'
 #' @param path          either a Pavlovia database export (a single .csv) or a
@@ -147,8 +203,14 @@ load_human_data <- function(path = "../Data/human-responses",
   } else if (file.exists(path)) {
     files <- path
     message("reading database export: ", basename(path))
+  } else if (all(file.exists(PREPARED))) {
+    ## The raw exports carry SONA participant IDs and are deliberately not in
+    ## the repository, so read the de-identified set instead. Same trials, same
+    ## exclusions, arbitrary participant codes.
+    return(load_human_prepared())
   } else {
-    stop("no such file or directory: ", path)
+    stop("no such file or directory: ", path,
+         ", and no de-identified human data in ../Data/ either")
   }
 
   raw <- map_dfr(files, read_pavlovia_csv)

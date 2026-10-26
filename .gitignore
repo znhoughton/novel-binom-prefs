@@ -42,3 +42,13 @@ Analysis/*_files/
 # Editor/script backups
 *.bak
 *.superseded
+
+# Raw Pavlovia/SONA exports. These carry SONA participant ids, which are
+# institution-linked and re-identifiable, so they stay local. Run
+# Analysis/prepare_human_data.R to regenerate the de-identified
+# Data/human-{trials,checks,participants}.csv that the models and the writeup
+# read; those are committed, these are not.
+Data/human-responses/
+
+# The pilot participants' SONA ids, needed only to process the raw exports.
+Analysis/.pilot_participants
