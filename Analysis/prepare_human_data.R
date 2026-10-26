@@ -84,8 +84,8 @@ write_csv(parts,  file.path(OUT_DIR, "human-participants.csv"))
 ## Checked on the written files rather than on the data frames, so what is
 ## verified is what would actually be committed. The test is per cell and exact:
 ## a substring test flags any six-digit id that happens to fall inside a
-## coefficient (AbsPref_c of -0.1234560 contains "123456"), which is noise
-## rather than disclosure.
+## coefficient, since an AbsPref_c of -0.1234560 contains "123456", which is
+## noise rather than disclosure.
 for (nm in c("human-trials.csv", "human-checks.csv", "human-participants.csv")) {
   back <- read_csv(file.path(OUT_DIR, nm), show_col_types = FALSE,
                    progress = FALSE)
