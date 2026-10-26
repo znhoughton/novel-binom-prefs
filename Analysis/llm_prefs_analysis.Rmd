@@ -624,20 +624,37 @@ traj_pred <- imap_dfr(traj_fits, function(fit, m) {
     as_tibble() %>%
     bind_cols(grid_m) %>%
     mutate(model = m)
-}) %>%
-  mutate(name = str_remove(model, "^.*/"))
+})
+
+## The facet variable has to be a factor with its levels already set, not an
+## expression. facet_wrap() re-evaluates its formula against EVERY layer's data,
+## and the point layer below is stage1, which has one row per checkpoint rather
+## than per grid point; reordering `name` by a vector taken from traj_pred then
+## compares two different lengths and fails. Ordering by family and size also
+## beats the order unique() happened to return.
+panel_levels <- stage1 %>%
+  distinct(model, model_family, params) %>%
+  arrange(model_family, params) %>%
+  mutate(name = str_remove(as.character(model), "^.*/")) %>%
+  pull(name)
+
+name_fct <- function(d) {
+  d %>% mutate(name = factor(str_remove(as.character(model), "^.*/"),
+                             levels = panel_levels))
+}
+traj_pred  <- name_fct(traj_pred)
+stage1_pts <- name_fct(stage1)
 
 ggplot(traj_pred, aes(10^log_tokens, Estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50") +
   geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5), alpha = .18) +
   geom_line(linewidth = .7) +
   geom_pointrange(
-    data = stage1 %>% mutate(name = str_remove(model, "^.*/")),
+    data = stage1_pts,
     aes(x = tokens + 1, y = est_z,
         ymin = est_z - 1.96 * se_z, ymax = est_z + 1.96 * se_z),
     size = .2, alpha = .6, inherit.aes = FALSE) +
-  facet_wrap(~ fct_reorder(name, traj_pred$model %>% match(model_names)),
-             scales = "free_x") +
+  facet_wrap(~ name, scales = "free_x") +
   scale_x_log10(labels = scales::label_number(scale_cut = scales::cut_short_scale())) +
   labs(x = "Tokens seen (log scale)",
        y = "AbsPref sensitivity (per unit residual SD)",

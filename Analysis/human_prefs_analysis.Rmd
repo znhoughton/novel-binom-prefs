@@ -391,21 +391,6 @@ constraint_summary %>%
   theme_bw()
 ```
 
-# Model comparison
-
-Does knowing the individual constraints buy anything over the single AbsPref
-summary? Both are fit to the same rows, so LOO is comparable.
-
-```{r loo}
-m_abspref          <- add_criterion(m_abspref, "loo")
-m_constraints      <- add_criterion(m_constraints, "loo")
-loo_compare(m_abspref, m_constraints)
-```
-
-A large advantage for `m_constraints` means people weight the constraints
-differently from Morgan & Levy's fixed weighting; a small one means AbsPref
-already captures most of what the constraints explain.
-
 # Session info
 
 ```{r session}

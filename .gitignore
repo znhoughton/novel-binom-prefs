@@ -33,3 +33,12 @@ Writeup/*.tex
 Writeup/*.html
 Writeup/*_files/
 Writeup/.quarto/
+
+# Knitted notebook output. The .Rmd files are the source; their HTML is a
+# local render artefact like the Quarto ones above.
+Analysis/*.html
+Analysis/*_files/
+
+# Editor/script backups
+*.bak
+*.superseded

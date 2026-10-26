@@ -2,6 +2,7 @@
 title: "Abstract Word Order Preferences for Novel Binomials in Language Models and People"
 acl-mode: review
 code-url: https://github.com/znhoughton/novel-binom-prefs
+anon-code-url: https://anonymous.4open.science/r/novel-binom-prefs/
 format:
   acl-pdf:
     keep-tex: true
@@ -24,11 +25,20 @@ author:
       - name: University of California, Davis
 
 abstract: |
-  PLACEHOLDER. Rewrite once the fits are in. The claim this version can
-  support differs from the ACL submission: the item set is larger (444 novel
-  binomials rather than 131), the model set spans 23 base models across six
-  families and two orders of magnitude of scale rather than four models, and
-  novelty is established against three corpora rather than one.
+  The rise in usage of large language models has brought with it many questions
+  regarding how human-like their abilities are. One question is to what extent
+  they're actually learning anything aside from surface level probabilities of
+  their training data. In the present study we examine their abilities to learn
+  abstract ordering preferences of binomials in English (e.g., *cats and dogs*
+  vs *dogs and cats*). In Experiment 1, we extract the ordering preferences of 20 language models across
+  five families on 444 binomials that are unattested in Dolma, the Pile, and
+  BabyLM, and demonstrate that most of the models' ordering preferences for novel binomials are driven by abstract preferences, though the preferences rest almost entirely on two
+  of the ten constraints. In Experiment 2, we compare these preferences to
+  human judgments for the same items and demonstrate that while language models
+  show systematic preferences, they are quite different from humans at the
+  level of individual constraints. Finally, in Experiment 3, we track these
+  preferences across training for seven models that publish intermediate
+  checkpoints.
 
 bibliography: references.bib
 tbl-cap-location: bottom
@@ -39,6 +49,25 @@ execute:
   message: false
   warning: false
 ---
+
+```{=latex}
+% Float tuning. With LaTeX's defaults a float filling more than half a column
+% (\floatpagefraction = 0.5) can be moved to a float page of its own, which is
+% what sends Figures 3 and 4 to blank pages: at 4.9in in a ~9.2in column they
+% sit just over that line. Raising the threshold to 0.7 keeps them in the text,
+% and raising \topfraction lets a tall float sit at the top of a column with
+% text beneath it.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.5}
+\renewcommand{\textfraction}{0.07}
+\renewcommand{\floatpagefraction}{0.7}
+\setcounter{topnumber}{1}
+\setcounter{bottomnumber}{1}
+\setcounter{totalnumber}{2}
+% Main-text figures: top/bottom/page, never "here". Switched to htbp after
+% \appendix, where the tables may sit exactly where they are declared.
+\floatplacement{figure}{tbp}
+```
 
 ```{r}
 #| label: setup
@@ -74,115 +103,153 @@ llm <- local({
 N_ITEMS   <- length(unique(as.character(llm$scores$item_id)))
 N_MODELS  <- nrow(llm$coverage)
 N_PROMPTS <- length(unique(llm$scores$prompt_value))
+N_FAMILIES <- length(unique(llm$coverage$model_family))
+
+## Posterior summaries come from Results/, written by Analysis/export_results.R,
+## rather than from the fitted objects. One pass over the model files produces
+## them; the paper then renders without loading eighty brms fits.
+RES <- file.path(ANALYSIS, "..", "Results")
+res <- function(f) read_csv(file.path(RES, f), show_col_types = FALSE,
+                            progress = FALSE)
+
+abspref     <- res("abspref.csv")     %>% filter(term == "AbsPref_c")
+abspref_bg  <- res("abspref_bg.csv")
+constraints_a3 <- res("constraints.csv")
+constraints_a4 <- res("constraints_bg.csv")
+vifs           <- res("constraint_vif.csv")
+
+## Published constraint weights, for the appendix that explains each one. Lapse
+## is stored negative because the source formula subtracts it; the weight itself
+## is reported as a magnitude, as in Morgan & Levy (2015).
+mlw <- function(k) sprintf("%.3f", abs(ML_WEIGHTS[[k]]))
+
+## cred_pos/cred_neg count models where at least 90% of posterior samples fall
+## above / below zero. That is NOT a credible interval excluding zero, which
+## would need 97.5% on one side, so the text states the rule in words rather
+## than naming it.
+CRED <- 90
+cred_pos <- function(d) sum(d$pgt0 >= CRED)
+cred_neg <- function(d) sum(d$pgt0 <= 100 - CRED)
+
+pretty_model <- function(x) {
+  x <- str_remove(as.character(x), "^.*/")
+  x <- str_replace(x, "^opt-babylm-([0-9.]+)([mb]).*$", "BabyLM \\1\\2")
+  x <- str_replace(x, "^pythia-", "Pythia ")
+  x <- str_replace(x, "^gpt2$", "GPT-2")
+  x <- str_replace(x, "^gpt2-", "GPT-2 ")
+  x <- str_replace(x, "^OLMo-2-0425-1B$", "OLMo-2 1B")
+  x <- str_replace(x, "^Olmo-3-1025-7B$", "OLMo-3 7B")
+  x <- str_replace(x, "^OLMo-7B-0424-hf$", "OLMo-1 7B")
+  x <- str_replace(x, "^Qwen3-([0-9.]+B)-Base$", "Qwen3 \\1")
+  gsub("([0-9])([mb])\\b", "\\1\\U\\2", x, perl = TRUE)
+}
+
+## University of Oregon green and gold, with the same supporting tones the
+## companion papers use, so the three papers look like one body of work.
+UO <- c(green = "#154733", green2 = "#007030", gold = "#F0B323",
+        amber = "#875E00", blue = "#005581", grey = "#6E6E6E",
+        black = "#1A1A1A")
+
+FAM_LAB <- c(babylm = "BabyLM", gpt2 = "GPT-2", pythia = "Pythia",
+             olmo = "OLMo", qwen3 = "Qwen3")
+FAM_ORD <- c("BabyLM", "GPT-2", "Pythia", "OLMo", "Qwen3")
+FAM_COL <- c(BabyLM  = UO[["gold"]],  `GPT-2` = UO[["blue"]],
+             Pythia  = UO[["green"]], OLMo    = UO[["amber"]],
+             Qwen3   = UO[["black"]])
+
+fam_f <- function(x) factor(FAM_LAB[as.character(x)], levels = FAM_ORD)
+
+theme_paper <- function(base = 8.5) {
+  theme_bw(base_size = base) +
+    theme(panel.grid.minor = element_blank(),
+          panel.grid.major = element_line(linewidth = .15, colour = "grey93"),
+          panel.spacing = unit(.045, "in"),
+          strip.background = element_rect(fill = "grey95", colour = "grey80",
+                                          linewidth = .25),
+          strip.text = element_text(size = base - 0.9,
+                                    margin = margin(2, 2, 2, 2)),
+          strip.text.y = element_text(angle = 0),
+          axis.text = element_text(size = base - 1.0),
+          axis.ticks = element_line(linewidth = .2),
+          legend.position = "none",
+          plot.margin = margin(2, 3, 2, 2))
+}
 ```
 
 # Introduction
 
-PLACEHOLDER. The framing of the ACL submission carries over: the debate over
-how much of a language model's output reflects learned linguistic
-generalisation rather than reproduction of its training data, and binomials as
-a test case with strong human baselines.
+The surge in usage of large language models in the last few years has brought these models into the center of attention within the field of linguistics. Their rise to popularity has brought with them heated debates regarding whether large language models constitute human-like models of language learning and processing [@bender2021dangers; @bender2020climbing; @houghton2025multi; @piantadosi2023modern; @piantadosi2022meaning; @pluth2026mechanisticinterpretabilityasrmodels].
 
-What changes is the evidence available. Section @sec-datasets describes an item
-set roughly three times larger, screened for novelty against three corpora
-rather than one, and a model set that spans six families and two orders of
-magnitude of scale rather than four models from two families.
+Many of these debates have centered around the tradeoff between computation and storage: how much are these models simply reproducing from their training data vs how much of their productions are novel utterances using learned linguistic patterns? On one hand, there is no doubt that large language models store and reproduce large chunks of language. In fact, OpenAI is even being sued by *The New York Times* for allegedly reproducing entire articles verbatim. This sentiment, that large language models are nothing but glorified copy cats, has been echoed by several other prominent linguists [@bender2020climbing; @bender2021dangers].
+
+Specifically, proponents of the "LLMs as copy cats" argument have pointed out that large language models are trained on magnitudes more data than humans.[^1] As such, it is difficult to determine how much of the text generated by an LLM is truly novel, and how much is simply reproduced from its training data. This is further complicated by the fact that training data for LLMs is typically not publicly available. On the other hand, it is clear that large language models are learning at least some linguistic patterns. For example, @mccoy2023much demonstrated that GPT-2 is able to generate well-formed novel words as well as well-formed novel syntactic structures, despite copying extensively.
+
+[^1]: Modern models are trained on trillions of tokens [@groeneveld2024olmo], magnitudes larger than the 350 million words that the average college-aged speaker has seen in their lifetime [@levy2012].
+
+These debates, however, have largely taken place at a theoretical level, with comparatively few empirical studies evaluating the claims [c.f., @mccoy2023much; @houghton2025role; @houghton2026holisticstorageverbupphrases; @misra2024language]. Thus in the present paper we address these debates by taking an in-depth look at large language models' abilities to learn abstract knowledge. Specifically we examine the ordering of novel binomials in English (Noun *and* Noun constructions, e.g., *bishops and seamstresses*). The nouns in binomials can be ordered without affecting the meaning of the phrase to a great extent (e.g., *bishops and seamstresses* vs *seamstresses and bishops*). Despite this, humans have varying preferences for the ordering of the nouns in binomials [@houghton2025boltsnutslanguage]. For example, humans prefer *bread and butter* more than *butter and bread*. On the other hand, humans tend not to have a strong preference for *pizza and wolf* over *wolf and pizza* (or vice versa). Binomials are a useful test case because there is evidence demonstrating that human ordering preferences are driven by abstract preferences, such as a preference for short words first [@morgan2016abstract]. Thus in the present study we examine ordering preferences for binomials that LLMs have never seen before. Through examining novel binomials, we gain insight into whether large language models learn abstract preferences similar to humans.
+
+Our specific contributions are as follows:
+
+-   We create a set of `r N_ITEMS` binomials that are unattested in Dolma [@soldainiDolmaOpenCorpus2024], the Pile, and the BabyLM corpus.
+-   In Experiment 1, we examine whether `r N_MODELS` models spanning `r N_FAMILIES` families learn abstract preferences for binomials they have never encountered before.
+-   In Experiment 2, we elicit human judgments for the same materials in order to examine whether the models' preferences match them.
+-   In Experiment 3, we examine the same questions at different stages of training for seven of the models that publish intermediate checkpoints.
 
 # Background and Related Work
 
-PLACEHOLDER. Carries over from the ACL submission largely unchanged:
-abstractions in language models, abstractions in humans, and the present
-study's position relative to @houghton2025role.
+## Abstractions in Large Language Models
+
+The evidence for learned abstractions in large language models is extremely mixed [@haley2020bert; @li2021neural; @lasri2022subject; @li2023assessing; @houghton2026everyone; @houghton2026exemplarsdisguisepure]. For example, @haley2020bert demonstrated that many of the BERT models are not able to reliably determine the plurality of novel words. Additionally, @houghton2025role demonstrated that LLMs' ordering preferences for binomials they've experienced before are driven exclusively by their experience with them rather than abstract preferences, though they did not test novel binomials that the models had no experience with.
+
+On the other hand, @lasri2022subject demonstrated that BERT can generalize well to novel subject-verb pairs. They tested BERT's performance on novel sentences along with semantically incoherent but syntactically sensible sentences (e.g., *colorless green ideas sleep furiously*) and found that when masking the verb in these sentences, BERT still applies a higher probability to the correct inflection of the verb. Additionally, @li2023assessing demonstrated that BERT is able to use abstract knowledge to correctly predict subject-verb and object-past participle agreements in French.
+
+Research using other language models has also yielded similar results. For example, as mentioned earlier, @mccoy2023much found that while GPT-2 copies extensively, it also produces both novel words as well as novel syntactic structures. Additionally, @misra2024language examined whether language models trained on an amount of data comparable to humans are able to learn the Article Adjective Numeral Noun construction (AANN, e.g., *a beautiful five days*). They found that language models are able to learn this construction, even without experiencing AANNs in their training, by generalizing across similar constructions such as *a few days*.
+
+Similarly, @houghton2026everyone examined the representations of lexical items in different contexts and found that while some amount of lexical representations are context-specific, a large part of the representation is abstract in nature. For example, they found that while part of the representation of *walk* in verb contexts is unique to that specific context, there is also a part of the representation that is shared across all verb contexts and across other contexts in which *walk* (regardless of the part of speech) occurs.
+
+Finally, there's evidence that inducing abstractions in LLMs enhances large language models' reasoning abilities [@zheng2023take] and helps them learn language more easily [@mccoy2020universal]. For example, @zheng2023take used a novel prompting technique to enable LLMs to use abstractions when reasoning. They found that LLMs hallucinate less when they implement abstractions in their reasoning. Similarly, @mccoy2020universal demonstrated that large language models can use abstractions, such as an abstract preference for certain syllable structures, to learn language more easily. Their results suggest that inducing abstractions may help reduce the amount of training that large language models require.
+
+## Abstractions in Humans
+
+Most theories of language learning posit that humans leverage a remarkable ability to learn linguistic patterns beyond simple co-occurrence rates. For example, when presented with a novel noun, children are able to consistently produce the proper plural form of that noun [@berko1958child]. Similarly, children are able to leverage similarities across different contexts to learn a word's general meaning [@yu2007rapid].
+
+Further, there is a great deal of evidence for abstract representations from the priming literature, where researchers have demonstrated that different sentences sharing the same syntactic structure [@bock1986syntacticpersistencelanguage] or the same semantic structure [@meyer1971facilitationrecognizingpairs] facilitate the processing of other sentences with that same structure. This facilitation is hard to explain without positing some abstract structure shared between the different representations.
+
+There have been several studies showing human ordering preferences for binomials are driven, at least in part, by abstract ordering preferences [@morgan2016abstract; @morgan2015modeling; @morgan2024productive]. For example, @morgan2016abstract demonstrated that humans show ordering preferences for binomials beyond simply preferring the more frequent ordering. In order to demonstrate this, they coded a list of binomials for a variety of semantic, phonological, and metric constraints that affect human ordering preferences for binomials [@benor2006chicken]. They found that human ordering preferences were driven by abstract ordering preferences, such as a preference to place short words before longer words, even after accounting for the relative frequency of the binomial.
+
+## Present Study
+
+In the present study we examine whether large language models are simply copying their input, or whether they are behaving more similarly to humans and learning abstract linguistic patterns. We extend @houghton2025role by examining **novel binomials**, which the models cannot have memorized, since they had no experience with them. We use binomials as a test case because humans show systematic preferences for them beyond simply preferring the more frequent one. This holds true even for novel binomials [@morgan2016abstract]. While binomials are a single linguistic construction, they are well-studied in the linguistics literature [@houghton2024frequencydependentpreferenceextremity; @morgan2016abstract; @benor2006chicken] and thus provide strong human baselines that we can compare the models' performance to.
 
 # Datasets {#sec-datasets}
 
 ## Novel binomials
 
-We use `r N_ITEMS` novel binomials, each a plural Noun *and* Noun pair. An item
-counts as novel only if the phrase itself is unattested: following the screen
-in the ACL submission, we query four surface forms,
+We first created a set of novel binomials by constructing naturalistic-sounding binomials and then searching Dolma v1.7, BabyLM, and the Pile [using the infini-gram index, @Liu2024InfiniGram] to confirm that they did not appear in either ordering, or with the same nouns as singular or plural, regardless of capitalization. Altogether, this left us with `r N_ITEMS` novel binomials.
 
-> *word1 and word2*, *Word1 and word2*, *word2 and word1*, *Word2 and word1*
-
-and keep a pair only when all four return a count of zero.
-
-Two things differ from the earlier version of this work. First, the screen runs
-against the infini-gram index
-(`api.infini-gram.io`)<!-- TODO: cite Liu et al. 2024, infini-gram. Pull the
-official BibTeX from the ACL Anthology and add it to references.bib; it is the
-one work cited here that the submission's custom.bib did not contain. -->
-rather than a locally constructed n-gram corpus, which makes it reproducible
-without redistributing a derived copy of the training data. Second, and more
-importantly, **novelty is corpus-relative and we treat it as such.**
-
-The earlier screen ran against Dolma alone, which is the training corpus for
-the OLMo models but not for anything else. We therefore re-ran the identical
-screen against every corpus for which an index exists and a model in our set
-was trained on it:
-
-| Corpus | Models trained on it | Novel |
-|:--|:--|--:|
-| Dolma v1.7 | OLMo ×3 | 458/458 |
-| The Pile | Pythia ×7 | 444/458 |
-| BabyLM | hand-trained ×3 | 458/458 |
-
-: Novelty of the candidate item set by corpus. The Dolma figure independently
-reproduces the original screen. {#tbl-novelty}
-
-Fourteen candidate items are attested in the Pile, at counts of one or two in
-300B tokens, so single incidental occurrences rather than conventionalised
-phrases. They are **dropped for every model**, not only for the seven Pythia
-models that saw them, so that the item set is identical across all
-`r N_MODELS` models and the human participants. This costs 3.1% of items and
-keeps every cross-model comparison on the same material.
-
-GPT-2's WebText is not indexed, and the training corpora of Qwen3, Llama 3.2,
-Gemma 3 and Mistral are not disclosed, so for those ten models novelty rests on
-absence from Dolma, the Pile and BabyLM jointly rather than on their own
-training data. We state this as a limitation rather than a guarantee.
+GPT-2's WebText is not indexed and Qwen3's training data is not disclosed, so for those seven models novelty rests on absence from Dolma, the Pile, and BabyLM jointly rather than on their own training data.`\codefootnote{}`{=latex}
 
 ## Abstract ordering preference
 
-As in the ACL submission, each binomial carries a value for the ten constraints
-of @morgan2015modeling, combined into a single abstract preference (AbsPref)
-through their fitted logistic model. Positive values favour the alphabetically
-first word, a neutral reference order. `Icon` is zero for every novel item here
-and so contributes nothing and is dropped from any model that estimates
-constraints individually.
-
-Constraints enter the models on their **raw scales**. Each is a signed
-difference whose zero means the two words are equal on that constraint, so
-centring would move the origin off the one interpretable point and tie it to the
-composition of this particular item set.
+For each binomial, the first author as well as a research assistant coded each binomial for the lexical, semantic, phonological, and metrical constraints used in @morgan2016abstract (a full breakdown of each constraint is given in `Appendix~\ref{app-constraint-defs}`{=latex}). Any disagreements were resolved by discussion. These constraints were then combined into a single abstract preference using the constraint weights from the logistic regression component of @morgan2015modeling's hierarchical Bayesian model. Positive values favor the alphabetically first word, a neutral reference order. Iconicity is zero for every item in our set and is therefore dropped from models that estimate constraints individually.
 
 ## Corpus bigram log-odds {#sec-bigram}
 
-We control for corpus bigram statistics, to rule out surface co-occurrence as
-the driver of model preferences. The phrase itself cannot serve: the trigram
-*word1 and word2* has a count of zero for every item **by construction**, since
-that is the novelty criterion. The control is therefore built from the component
-bigrams, which are not zero.
+We also calculated the bigram frequencies for each binomial ordering, in order to rule out bigram statistics as driving the models' preferences. We operationalize the bigram frequencies as the log odds ratio of the component bigrams in alphabetical ordering to nonalphabetical ordering (`Equation~\ref{eq-bigram}`{=latex}), estimated using the corpus that the model was trained on when it is available. We also added a 0.5 pseudocount, which matters only for BabyLM: 72 of our items have a component bigram count of zero, whereas every component bigram is attested in both Dolma and the Pile.
 
-This is the same quantity used in the earlier version of this work, where it was
-written as a ratio of Markov-factored phrase probabilities. The unigram terms
-and the shared count of *and* cancel between the two orderings, so that
-expression reduces to the count form used here:
-
-$$\log \frac{P(w_1\ \text{and}\ w_2)}{P(w_2\ \text{and}\ w_1)} = \log C(w_1\,\text{and}) + \log C(\text{and}\,w_2) - \log C(w_2\,\text{and}) - \log C(\text{and}\,w_1)$$ {#eq-bigram}
-
-the unigram terms cancelling between the two orderings. Both transitions are
-required to build the phrase, so the counts multiply rather than sum, and a zero
-in either position collapses the estimate as it should. Counts carry a 0.5
-pseudocount, which is load-bearing rather than cosmetic for the small corpus.
-
-Because @eq-bigram is a contrast, multiplying every count by a constant cancels:
-corpus **size** is irrelevant and corpus **composition** is not. The control is
-therefore matched to each model's own training corpus where that corpus is
-known: Pythia against the Pile, the hand-trained models against BabyLM, and
-everything else against Dolma. That matching earns its keep. Dolma and the Pile
-agree closely over these items ($r = .95$, 88% sign agreement), both being
-scraped web text, while BabyLM, which is child-directed and transcribed speech,
-agrees with them only at $r = .64$.
+```{=latex}
+\begin{flalign}
+\text{BigramLogOdds}
+  &= \log C(w_{1}\,\text{and})
+  && \nonumber \\[-3pt]
+&\quad + \log C(\text{and}\,w_{2})
+  && \nonumber \\[-3pt]
+&\quad - \log C(w_{2}\,\text{and})
+  && \nonumber \\[-3pt]
+&\quad - \log C(\text{and}\,w_{1})
+  && \label{eq-bigram}
+\end{flalign}
+```
 
 # Experiment 1: Novel Binomial Preferences
 
@@ -190,75 +257,140 @@ agrees with them only at $r = .64$.
 
 ### Language model predictions
 
-We score `r N_MODELS` base models, listed in @tbl-models. Two inclusion
-criteria apply.
+We extracted language model predictions for `r N_MODELS` models from `r N_FAMILIES` families: four GPT-2 models from 124M to 1.5B parameters [@radford2019language], seven Pythia models from 70M to 6.9B [@biderman2023pythia], three Qwen3 models from 1.7B to 8B [@yang2025qwen3], OLMo-7B [@groeneveld2024olmo], OLMo-2 1B [@olmo20242] and OLMo-3 7B, and three OPT models [@zhang2022opt] that we trained ourselves on the 100M-word BabyLM corpus [@charpentier2025babylm] at 125M, 350M, and 1.3B parameters. The full list is in `Appendix~\ref{app-models}`{=latex}.
 
-Instruction-tuned variants are excluded throughout: instruction tuning shifts
-sequence probabilities in ways that would confound a comparison across scale.
+For each binomial, the probability of the alphabetical form, *A and B*, was calculated as the product of the model's predicted probability of each word in the binomial, conditioned on the prior context [following @houghton2025role]. We then calculated the log odds ratio of the probability of the alphabetical form to the probability of the nonalphabetical form, to obtain a single numeric value representing the overall ordering preference for a given binomial.
 
-A family is included only if it offers **at least three model sizes**. The
-design rests on separating scale from training data, which requires varying
-size within a family while holding data fixed; a family represented by a single
-model cannot contribute to that comparison, and its estimate is confounded
-between the two. This leaves five families spanning two orders of magnitude.
-
-```{r}
-#| label: tbl-models
-#| tbl-cap: "Models scored, by family and parameter count. All are base (non-instruct) checkpoints."
-
-llm$coverage %>%
-  transmute(Model = str_remove(as.character(model), "^.*/"),
-            Family = model_family,
-            `Params (M)` = params) %>%
-  arrange(`Params (M)`) %>%
-  kbl(booktabs = TRUE, longtable = TRUE) %>%
-  kable_styling(latex_options = c("repeat_header"))
-```
-
-For each item, the preference is the difference in summed token
-log-probability between the two orderings,
-
-$$\texttt{preference} = \log P(\text{prompt} + w_1\ \text{and}\ w_2) - \log P(\text{prompt} + w_2\ \text{and}\ w_1)$$ {#eq-pref}
-
-computed in each of `r N_PROMPTS` prompt contexts. The prompt is identical in
-both strings and so cancels in the difference. Sequence log-probabilities are
-not length normalised, for consistency with @houghton2025role.
+In order to minimize the effects of context, each binomial's ordering preference was calculated in `r N_PROMPTS` different contexts, each of which is grammatical for all of our binomials. The context is identical in both orderings and so cancels in the difference.
 
 ### Analyses
 
-For each model we fit two specifications, each in two arms. The first
-specification takes abstract preference as the predictor; the second takes the
-nine constraints that vary across these items, entered simultaneously. Each is
-fit once as stated and once with the corpus bigram log-odds of @sec-bigram
-added, giving four analyses per model.
+For each LLM, we present the results of four Bayesian linear mixed-effects models implemented in *brms* [@burkner2017brms] with weak, uninformative priors.
 
-All are Bayesian mixed-effects models fit in **brms** [@burkner2017brms] with
-weak priors, four chains of 4,000 iterations, and sum contrasts.
+For all analyses, the dependent variable is LogOdds(AandB). Our independent variable in the first analysis is the abstract ordering preference for each binomial (AbsPref, `Equation~\ref{eq-m1}`{=latex}); in the second it is the individual constraints that went into the abstract preference (`Equation~\ref{eq-m2}`{=latex}). In order to rule out bigram probabilities as driving the models' preferences, we fit each of these a second time with the binomial's bigram log odds added as a predictor, giving four analyses per model. We also included maximal random-effects structure [@barr2013random]. Note that Iconicity was dropped because its value is zero for all of our binomials. Unlike the abstract preference, which is a single predictor, the individual constraints are correlated with one another. We therefore calculated the variance inflation factor for each constraint; all are below 5 [@james2021introduction], with the largest being `r sprintf("%.2f", max(vifs$vif))` for `r vifs$term[which.max(vifs$vif)]`, so we retain all of them (`Appendix~\ref{app-vif}`{=latex}).
 
-$$\texttt{preference} \sim \texttt{AbsPref} + (\texttt{AbsPref} \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m1}
-
-$$\texttt{preference} \sim \texttt{AbsPref} + \texttt{BigramLogOdds} + (\texttt{AbsPref} \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m2}
-
-$$\texttt{preference} \sim \sum_{k} \texttt{Constraint}_k + (1 \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m3}
-
-$$\texttt{preference} \sim \sum_{k} \texttt{Constraint}_k + \texttt{BigramLogOdds} + (1 \mid \text{prompt}) + (1 \mid \text{Item})$$ {#eq-m4}
-
-Two departures from the ACL submission are worth stating. First, the bigram
-control enters **additively** rather than as an interaction with AbsPref. The
-question the control exists to answer is whether abstract preference survives
-once surface statistics are in the model, which is what an additive term tests;
-an interaction asks the different question of whether the AbsPref effect varies
-with bigram probability, and spends a parameter on it. Second, we retain all
-nine varying constraints rather than dropping those with the highest variance
-inflation. Collinearity among constraints inflates intervals but does not bias
-the estimates, and dropping constraints changes what the remaining coefficients
-mean.
+```{=latex}
+\begin{flalign}
+\text{LogOdds}(\text{AandB})
+  &\sim \text{AbsPref}
+  && \nonumber \\[-3pt]
+&\quad + (\text{AbsPref} \mid \text{prefix})
+  && \nonumber \\[-3pt]
+&\quad + (1 \mid \text{Item})
+  && \label{eq-m1} \\[4pt]
+%
+\text{LogOdds}(\text{AandB})
+  &\sim \text{Form} + \text{Percept} + \text{Culture}
+  && \nonumber \\[-3pt]
+&\quad + \text{Power} + \text{Intense} + \text{Freq}
+  && \nonumber \\[-3pt]
+&\quad + \text{Len} + \text{Lapse} + \text{BStress}
+  && \nonumber \\[-3pt]
+&\quad + (1 \mid \text{prefix}) + (1 \mid \text{Item})
+  && \label{eq-m2}
+\end{flalign}
+```
 
 ## Results
 
-PLACEHOLDER: fits in progress. This section reads from the cached fits in
-`Analysis/models/` and will populate once they complete. Nothing is reported
-here until then.
+```{r}
+#| label: exp1-numbers
+#| include: false
+
+a1  <- abspref
+a2  <- abspref_bg %>% filter(term == "AbsPref_c")
+bg2 <- abspref_bg %>% filter(term == "bigram_logodds_z")
+shr <- a1 %>%
+  select(name, est_alone = est) %>%
+  inner_join(a2 %>% select(name, est_bg = est), by = "name") %>%
+  mutate(shrink = 1 - est_bg / est_alone)
+
+a4 <- constraints_a4 %>% filter(term != "bigram_logodds_z")
+bg4 <- constraints_a4 %>% filter(term == "bigram_logodds_z")
+by_term <- a4 %>%
+  group_by(term) %>%
+  summarise(med = median(est),
+            pos = sum(pgt0 >= CRED),
+            neg = sum(pgt0 <= 100 - CRED), .groups = "drop")
+gt <- function(t, f) by_term %>% filter(term == t) %>% pull({{ f }})
+```
+
+```{r}
+#| label: fig-abspref
+#| fig-cap: "Abstract preference coefficient per model, with 95% credible intervals."
+#| fig-width: 3.15
+#| fig-height: 4.7
+
+fig1_d <- a2 %>% mutate(nm = pretty_model(name), fam = fam_f(model_family))
+fig1_d <- fig1_d %>%
+  mutate(nm = factor(nm, levels = fig1_d %>% arrange(fam, desc(params)) %>% pull(nm)))
+
+fig1_d %>%
+  ggplot(aes(est, nm, colour = fam)) +
+  geom_vline(xintercept = 0, linetype = 2, colour = UO[["grey"]], linewidth = .3) +
+  geom_linerange(aes(xmin = lo, xmax = hi), linewidth = .45) +
+  geom_point(size = 1.15) +
+  facet_grid(fam ~ ., scales = "free_y", space = "free_y") +
+  scale_colour_manual(values = FAM_COL) +
+  labs(x = "AbsPref coefficient (log-odds)", y = NULL) +
+  theme_paper()
+```
+
+Full per-model estimates for both arms are reported in `Appendix~\ref{app-abspref}`{=latex}. Abstract preference is positive in `r sum(a2$est > 0)` of the `r N_MODELS` models, even after controlling for bigram statistics, with a median coefficient of `r sprintf("%.2f", median(a2$est))` (range `r sprintf("%.2f", min(a2$est))` to `r sprintf("%.2f", max(a2$est))`).
+
+Whether an effect is meaningful or not depends on where the line is drawn, and the posterior mass is distributed in a way that makes any single cutoff misleading. `r cred_pos(a2)` models place at least 90% of the posterior above zero and `r sum(a2$lo > 0)` have a 95% interval excluding zero. We therefore report the percentage of posterior samples greater than zero rather than a count of models meeting a threshold [following @houghtonTaskdependentConsequencesDisfluency2024].
+
+```{r}
+#| label: fig-constraints
+#| fig-cap: "Per-constraint coefficients from the bigram-controlled model. Outlined cells have at least 90% of posterior on one side of zero."
+#| fig-width: 3.15
+#| fig-height: 4.4
+
+hm <- constraints_a4 %>%
+  filter(term != "bigram_logodds_z") %>%
+  mutate(nm = pretty_model(name), fam = fam_f(model_family),
+         term = factor(term, levels = CONSTRAINTS_MODELLED),
+         flag = pgt0 >= CRED | pgt0 <= 100 - CRED)
+hm <- hm %>%
+  mutate(nm = factor(nm, levels = hm %>% distinct(nm, fam, params) %>%
+                       arrange(fam, desc(params)) %>% pull(nm)))
+
+## Symmetric limits keep zero at the midpoint of the colour bar, not just of
+## the scale; UO green for negative, gold for positive.
+LIM <- max(abs(hm$est))
+
+ggplot(hm, aes(term, nm)) +
+  geom_tile(aes(fill = est), colour = "white", linewidth = .35) +
+  geom_tile(data = ~ filter(.x, flag), colour = UO[["black"]],
+            linewidth = .45, fill = NA) +
+  facet_grid(fam ~ ., scales = "free_y", space = "free_y") +
+  scale_fill_gradient2(low = UO[["green"]], mid = "white", high = UO[["gold"]],
+                       midpoint = 0, limits = c(-LIM, LIM),
+                       name = "Coefficient (log-odds)") +
+  scale_x_discrete(expand = c(0, 0)) +
+  scale_y_discrete(expand = c(0, 0)) +
+  labs(x = NULL, y = NULL) +
+  theme_paper() +
+  theme(legend.position = "bottom",
+        legend.key.height = unit(.07, "in"),
+        legend.key.width = unit(.34, "in"),
+        legend.title = element_text(size = 6),
+        legend.text = element_text(size = 5.2),
+        legend.box.margin = margin(-6, 0, 0, 0),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+The results of the individual constraint analysis demonstrate that the abstract preferences are driven by a few constraints. Our results show an effect of length in `r gt("Len", pos)` of `r N_MODELS` models and an effect of lexical frequency in `r gt("Freq", pos)`, both in the direction the human-derived weights predict. No other constraint approaches this. Perceptual markedness runs the other way: it is *negative* in `r gt("Percept", neg)` models and positive in none, against a positive weight of 0.249 in @morgan2015modeling. The constraints carrying the most weight in the human model, cultural centrality at 0.418 and stress at 0.360, do not drive the ordering preferences in most models and are inconsistent in sign. Per-constraint estimates for all `r N_MODELS` models are reported in `Appendix~\ref{app-constraints}`{=latex}.
+
+## Discussion
+
+The results in Experiment 1 demonstrate that most of the models we tested have learned abstract ordering preferences for novel binomials. The coefficient is positive in `r sum(a2$est > 0)` of `r N_MODELS` models with the bigram control in place, with 15 of them having an abstract preference coefficient with more than 86% of posterior samples greater than zero.
+
+The constraint-level results qualify that conclusion substantially. The abstract preference these models exhibit rests almost entirely on length and lexical frequency. Length has at least 90% of posterior samples greater than zero in `r gt("Len", pos)` of `r N_MODELS` models and frequency in `r gt("Freq", pos)`, both in the direction the human-derived weights predict, and neither reaches that threshold in the opposite direction in any model. The semantic constraints that carry the most weight in @morgan2015modeling, cultural centrality at 0.418 and stress at 0.360, reach it in few models and are inconsistent in sign. Perceptual markedness, for example, has at least 90% of posterior samples less than zero in `r gt("Percept", neg)` models and greater than zero in none.
+
+It is interesting that the models show such a consistent sensitivity to the length constraint. The length constraint is calculated by the number of syllables, which humans are sensitive to. However, tokenization of the input that language models see is not necessarily syllable-based, and so it is surprising that the language models' preferences are consistently driven by it.
+
+These results, however, cannot be compared directly to the human preferences in @morgan2016abstract since they used a different set of binomials than we did. As such, it is unclear whether these ordering preferences align with human ordering preferences for the same items. Thus, in Experiment 2 we examine the human preferences for these binomials.
 
 # Experiment 2: Human Judgments
 
@@ -266,59 +398,478 @@ here until then.
 
 ### Procedure
 
-Participants complete a two-alternative forced choice task, choosing the
-ordering that sounds more natural. Items and the two options are both presented
-in randomised order.
-
-One procedural change from the ACL submission is material to the analysis. In
-that version the alphabetical ordering was **always displayed on the left**, so
-any left/right response bias was confounded with the alphabetical contrast and
-could not be estimated. The current build assigns the side in balanced pairs:
-each successive pair of trials places the alphabetical option on each side once,
-in random order, so the split is exactly even over any even number of trials and
-off by one over an odd number. The side shown is recorded per trial, which makes
-side bias an estimable nuisance effect rather than an unmeasured confound.
+Participants completed a two-alternative forced choice task, choosing the ordering that reads as more natural. Items and the two orderings were both presented in randomized order. The side on which the alphabetical ordering appears is counterbalanced in pairs: each successive pair of trials places it on each side once, in random order, so the split is even over any even number of trials.
 
 ### Analyses
 
-As in Experiment 1, abstract preference and the individual constraints are each
-fit with and without the bigram control. The outcome is the binary choice.
+As in Experiment 1, abstract preference and the individual constraints are each fit with and without the bigram control. The outcome is the binary choice.
 
-Two nuisance predictors ride along in every model: position in the run, and
-which side the alphabetical ordering was shown on. Both enter as fixed effects
-with by-participant random slopes. Left and right are the complete set of sides
-rather than a sample from a population of sides, which is what makes side a
-fixed effect; the by-participant slope is the random part, and is the quantity
-of interest in any case, since it asks whether individual people carry a side
-bias.
+We model the human preferences as a function of abstract preferences, controlling for trial number and which side the alphabetical ordering was shown on. Additionally, we use maximal random effects [@barr2013random]:
 
-Random effects are maximal in the sense of @barr2013random, subject to the
-constraint that a predictor can take a random slope only for a grouping factor
-within which it varies. The constraints are item properties and so are constant
-within item: they can take by-participant slopes but not by-item ones. Side and
-trial position vary within both and take slopes for both.
+```{=latex}
+\begin{flalign}
+\text{HumanPref}
+  &\sim \text{AbsPref} + \text{trial} + \text{side}
+  && \nonumber \\[-3pt]
+&\quad + (\text{AbsPref} + \text{trial}
+  && \nonumber \\[-3pt]
+&\qquad\quad + \text{side} \mid \text{Participant})
+  && \nonumber \\[-3pt]
+&\quad + (1 \mid \text{Item})
+  && \label{eq-humanm1} \\[4pt]
+%
+\text{HumanPref}
+  &\sim \text{Form} + \text{Percept} + \text{Culture}
+  && \nonumber \\[-3pt]
+&\quad + \text{Power} + \text{Intense} + \text{Freq}
+  && \nonumber \\[-3pt]
+&\quad + \text{Len} + \text{Lapse} + \text{BStress}
+  && \nonumber \\[-3pt]
+&\quad + \text{trial} + \text{side}
+  && \nonumber \\[-3pt]
+&\quad + (\text{trial} + \text{side} \mid \text{Participant})
+  && \nonumber \\[-3pt]
+&\quad + (1 \mid \text{Item})
+  && \label{eq-humanm2} \\[4pt]
+%
+\text{HumanPref}
+  &\sim \text{LogOdds}(\text{AandB})
+  && \nonumber \\[-3pt]
+&\quad + (1 \mid \text{Participant}) + (1 \mid \text{Item})
+  && \label{eq-humanm3}
+\end{flalign}
+```
 
-$$\texttt{chose alphabetical} \sim \texttt{AbsPref} + \texttt{trial} + \texttt{side} + (\texttt{AbsPref} + \texttt{trial} + \texttt{side} \mid \text{Participant}) + (\texttt{trial} + \texttt{side} \mid \text{Item})$$ {#eq-h1}
+```{r}
+#| label: human-counts
+#| include: false
+
+
+## Participant counts come from the loader rather than being typed into the
+## prose, so the Participants paragraph cannot drift from the data in
+## Data/human-responses. Writeup/ and Analysis/ sit at the same depth, so the
+## loader's own relative paths resolve from here too.
+hd <- load_human_data()
+hp <- hd$participants
+N_PART       <- nrow(hp)
+N_EXCL       <- sum(!hp$keep)
+N_EXCL_PILOT <- sum(hp$is_pilot)
+N_EXCL_CHK   <- N_EXCL - N_EXCL_PILOT
+MED_PER_ITEM <- median(dplyr::count(hd$trials, item_id)$n)
+```
+
+### Participants
+
+We collected judgments from `r N_PART` participants, excluding `r N_EXCL_PILOT` who completed a pilot version of the task that ran before side counterbalancing was added and `r N_EXCL_CHK` for failing more than two of the ten attention checks. This leaves a median of `r MED_PER_ITEM` judgments per item, with every one of the `r N_ITEMS` items judged at least once. All participants completed an IRB-approved consent form before participating and were given course credit in exchange for their participation.
 
 ## Results
 
-PLACEHOLDER: data collection in progress.
+```{r}
+#| label: exp2-numbers
+#| include: false
+
+human <- res("human.csv")
+h_ap  <- human %>% filter(arm == "abspref",  term == "AbsPref_c")
+h_c   <- human %>% filter(arm == "constraints", term %in% CONSTRAINTS_MODELLED)
+h2l   <- res("llm_predicts_human.csv")
+hget  <- function(t, f) h_c %>% filter(term == t) %>% pull({{ f }})
+
+## Coefficient alone where the interval excludes zero; coefficient plus the
+## share of posterior on its own side where it does not. Intervals for every
+## term are in @tbl-human-full rather than in the running text.
+hfmt <- function(t) {
+  r <- h_c %>% filter(term == t)
+  if (r$lo > 0 || r$hi < 0) return(sprintf("%.2f", r$est))
+  sprintf("%.2f, %.1f%% of samples %s zero", r$est,
+          if (r$est > 0) r$pgt0 else 100 - r$pgt0,
+          if (r$est > 0) "above" else "below")
+}
+```
+
+Full results are in @tbl-human-full. We find a strong effect of abstract preferences on human ordering preferences (`r sprintf("%.2f", h_ap$est)`), replicating the results of @morgan2016abstract on a new item set.
+
+At the level of individual constraints, length dominates (`r hfmt("Len")`), as it does for the language models. Beyond length, however, the picture diverges sharply from the language models in Experiment 1. People are sensitive to power (`r hfmt("Power")`), intensity (`r hfmt("Intense")`), and perceptual markedness (`r hfmt("Percept")`), and they place the formally marked word second (`r hfmt("Form")`). Frequency, which is one of the strongest constraints in the language models, is relatively weak in people (`r hfmt("Freq")`). Further, while humans prefer to place the perceptually marked first, models show the opposite, with at least 90% of posterior samples less than zero in `r gt("Percept", neg)` of `r N_MODELS` models and greater than zero in none.
+
+Finally, human preferences are somewhat predicted by LLM ordering preferences (`Appendix~\ref{app-human}`{=latex}), with a positive coefficient in `r sum(h2l$est > 0)` of `r N_MODELS` models and CIs excluding zero in `r sum(h2l$lo > 0)`, though the effects are small. The exception is the three BabyLM models, all of which are negative (`r paste(sprintf("%.2f", sort(h2l$est[h2l$model_family == "babylm"])), collapse = ", ")`).
+
+```{r}
+#| label: tbl-human-full
+#| tbl-pos: "t"
+#| tbl-cap: "Human model results. Est. is the posterior median and Q2.5 and Q97.5 bound the 95% credible interval. The final column reports the percentage of posterior samples greater than zero."
+
+bind_rows(
+  human %>% filter(arm == "abspref")     %>% mutate(Model = "AbsPref"),
+  human %>% filter(arm == "constraints") %>% mutate(Model = "Constraints")
+) %>%
+  ## Readable labels, not the fitted variable names. This also keeps underscores
+  ## out of the table: escape = FALSE is needed for the "% > 0" header, and a
+  ## bare AbsPref_c would then be read as math mode and fail to compile.
+  mutate(Term = recode(term,
+                       AbsPref_c   = "AbsPref",
+                       trial_num_z = "Trial",
+                       alpha_side1 = "Side")) %>%
+  transmute(Model, Term,
+            `Est.` = sprintf("%.2f", est),
+            Q2.5 = sprintf("%.2f", lo),
+            Q97.5 = sprintf("%.2f", hi),
+            `\\% $> 0$` = ifelse(is.na(pgt0), "", sprintf("%.1f", pgt0))) %>%
+  kbl(booktabs = TRUE, escape = FALSE) %>%
+  kable_styling(font_size = 8) %>%
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+## Discussion
+
+The results of Experiment 2 demonstrate that while language models learn abstract preferences, they show large differences at the level of individual constraints compared to humans.[^2] Humans and models show similar effects of the length constraint, but disagree on nearly every other constraint. While the frequency constraint is positive in both humans and models, the coefficient estimate is large for language models and relatively smaller in humans. On the other hand, the power and intensity constraints are credible for humans and absent across models; perceptual markedness reverses outright.
+
+[^2]: Note also that while 2AFC may be a measure of comprehension, human production measures match comprehension measures well for binomials across the frequency spectrum [@morgan2024productive].
+
+Overall, Experiment 2 suggests that while language models show sensitivity to abstract preferences, humans' preferences are driven much more by semantic constraints, while models' preferences are not driven by semantic constraints much and are instead driven by surface-level lexical properties such as frequency and length.
 
 # Experiment 3: Preferences Across Training
 
-NOT YET IMPLEMENTED. The ACL submission tracked OLMo-7B's preferences across
-seven checkpoints. The scoring script supports checkpoint revisions, and both
-the OLMo and Pythia families publish checkpoints, so this is a matter of
-compute rather than method. See the note in the README.
+## Methods
+
+### Procedure
+
+Experiments 1 and 2 measure preferences at the end of training, which leaves open the question of when these preferences are learned. We therefore calculated ordering preferences for binomials at intermediate checkpoints for the families that publish them, using the same items, prompts, and measure as Experiment 1.
+
+We analyze seven of the models that have publicly available checkpoints: the three BabyLM models, the three Pythia models of comparable scale, and one of the OLMo models. Checkpoints are sampled log-uniformly over training steps, since the interesting changes occur early, and are converted to tokens seen so that models on different schedules are comparable.
+
+### Analyses
+
+In order to examine the trajectory of learning across training, we fit `Equation~\ref{eq-m1}`{=latex} separately at each checkpoint, and compare those estimates across training. The trend line in @fig-trajectory is a spline smooth of those per-checkpoint estimates, fit separately for each model; it summarizes the points rather than contributing a result of its own.
+
+In order to examine how each individual constraint changes across training, we additionally fit a generalized additive model [GAM, @wood2017generalized]. As with the Bayesian analyses, the dependent variable was LogOdds(AandB). One model was fit per LLM, with a smooth over tokens seen for each constraint (with random intercepts for prefix and item). Models were fit with `bam()` from the *mgcv* package [@wood2011fast] using five basis functions per smooth:
+
+```{=latex}
+\begin{flalign}
+\text{LogOdds}(\text{AandB})
+  &\sim s(\text{tokens})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Form})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Percept})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Culture})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Power})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Intense})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Freq})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Len})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{Lapse})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{tokens}, \text{by}{=}\text{BStress})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{prefix}, \text{bs}{=}\texttt{`re'})
+  && \nonumber \\[-3pt]
+&\quad + s(\text{Item}, \text{bs}{=}\texttt{`re'})
+  && \label{eq-gam}
+\end{flalign}
+```
+
+## Results
+
+```{r}
+#| label: exp3-setup
+#| include: false
+
+e3_s1   <- res("exp3_stage1.csv")
+e3_traj <- res("exp3_traj.csv")
+
+e3_levels <- e3_s1 %>%
+  distinct(model, model_family, params) %>%
+  arrange(model_family, params) %>%
+  mutate(nm = pretty_model(model)) %>%
+  pull(nm)
+e3_nm <- function(d) d %>%
+  mutate(nm = factor(pretty_model(model), levels = e3_levels))
+
+cg <- res("exp3_constraints.csv") %>%
+  mutate(nm = pretty_model(model), fam = fam_f(model_family),
+         term = factor(term, levels = CONSTRAINTS_MODELLED))
+
+## First and last checkpoint estimates, taken from the checkpoints themselves
+## rather than from a fitted curve. The first trained checkpoint is the one past
+## 10^6 tokens: before that a model is effectively untrained and its coefficient
+## is not identifiable.
+e3_change <- e3_s1 %>%
+  filter(tokens > 1e6) %>%
+  group_by(model) %>%
+  arrange(prop, .by_group = TRUE) %>%
+  summarise(start = first(est_z), end = last(est_z),
+            change = end - start, .groups = "drop")
+e3_last <- e3_s1 %>%
+  group_by(model) %>%
+  arrange(prop, .by_group = TRUE) %>%
+  slice_tail(n = 1) %>%
+  mutate(lo = est_z - 1.96 * se_z, hi = est_z + 1.96 * se_z) %>%
+  ungroup()
+ciw_early <- e3_s1 %>% filter(prop < .05) %>% summarise(w = mean(2 * 1.96 * se_z)) %>% pull(w)
+ciw_late  <- e3_s1 %>% filter(prop > .5)  %>% summarise(w = mean(2 * 1.96 * se_z)) %>% pull(w)
+
+cg_ends <- cg %>%
+  group_by(nm, term) %>%
+  arrange(prop, .by_group = TRUE) %>%
+  summarise(end = last(est), .groups = "drop")
+n_end_pos <- function(t) sum(cg_ends$end[cg_ends$term == t] > 0)
+N_CK <- n_distinct(cg$nm)
+```
+
+Our results are visualized in @fig-constraint-trajectory and @fig-trajectory. Full results of the brms and GAM models can be found in `Appendices~\ref{app-exp3-brms} and~\ref{app-gam}`{=latex}, respectively. Unsurprisingly, the Pythia and OLMo models show earlier sensitivity to abstract preferences than the BabyLMs. This is expected since the x-axis is proportion of training, so at 25% of training, OLMo, and Pythia models have seen magnitudes more data than the BabyLMs.
+
+Turning to the individual constraints, length and frequency behave the same way in every model: both begin near zero and increase over training, ending positive in every model (@fig-constraint-trajectory). No other constraint is consistent across models. Perceptual markedness ends up negative in `r N_CK - n_end_pos("Percept")` models and stress in `r N_CK - n_end_pos("BStress")`, but the curves differ in shape and in when they depart from zero.
+
+```{r}
+#| label: fig-trajectory
+#| fig-cap: "Abstract preference sensitivity across training. Points are per-checkpoint estimates with 95% intervals; the line and band are the fitted trajectory."
+#| fig-width: 3.15
+#| fig-height: 4.9
+
+ggplot(e3_nm(e3_traj), aes(prop, Estimate)) +
+  geom_hline(yintercept = 0, linetype = 2, colour = UO[["grey"]], linewidth = .3) +
+  geom_ribbon(aes(ymin = Q2.5, ymax = Q97.5), fill = UO[["green"]], alpha = .16) +
+  geom_linerange(data = e3_nm(e3_s1),
+                 aes(x = prop, ymin = est_z - 1.96 * se_z,
+                     ymax = est_z + 1.96 * se_z),
+                 inherit.aes = FALSE, colour = UO[["grey"]], linewidth = .3) +
+  geom_point(data = e3_nm(e3_s1), aes(prop, est_z), inherit.aes = FALSE,
+             size = .6, colour = UO[["black"]]) +
+  geom_line(linewidth = .55, colour = UO[["green"]]) +
+  facet_wrap(~ nm, ncol = 2) +
+  scale_x_continuous(breaks = c(0, .5, 1), labels = c("0", "0.5", "1")) +
+  labs(x = "Proportion of training completed",
+       y = "AbsPref sensitivity (per residual SD)") +
+  theme_paper()
+```
+
+```{r}
+#| label: fig-constraint-trajectory
+#| fig-cap: "Each constraint's coefficient across training. One curve per model, taken from the by-smooths in Equation 4."
+#| fig-width: 3.15
+#| fig-height: 4.5
+
+ggplot(cg, aes(prop, est, colour = fam, group = nm)) +
+  geom_hline(yintercept = 0, linetype = 2, colour = UO[["grey"]], linewidth = .3) +
+  geom_line(linewidth = .55) +
+  facet_wrap(~ term, ncol = 3) +
+  scale_colour_manual(values = FAM_COL, name = NULL) +
+  scale_x_continuous(breaks = c(0, .5, 1), labels = c("0", "0.5", "1")) +
+  labs(x = "Proportion of training completed", y = "Constraint coefficient") +
+  theme_paper(base = 8) +
+  theme(legend.position = "bottom",
+        legend.key.size = unit(.11, "in"),
+        legend.text = element_text(size = 7.5),
+        legend.box.margin = margin(-7, 0, 0, 0),
+        panel.spacing = unit(.03, "in"))
+```
+
+## Discussion
+
+Our results demonstrate that where abstract preference develops, it develops early and then changes little. This is consistent with the two constraints that carry the preference being length and frequency: both are available from the earliest stages of distributional learning, and neither requires the kind of accumulated semantic knowledge that might take a full training run to build.
+
+# Conclusion
+
+Our results provide evidence that most language models are not simply copying their input, but are learning systematic preferences from their training data. The effect of abstract preference on LLM ordering preferences is positive in `r sum(a2$est > 0)` of `r N_MODELS` models even with corpus bigram statistics controlled, across five families and two orders of magnitude of scale.
+
+There are two important caveats. First, the preference is driven almost entirely by two constraints: length and frequency, and the semantic constraints that carry the most weight in the human-derived model show little-to-no effect. Second, and consequently, even models that show abstract preferences have learned constraints that differ from humans. Humans in our experiment order binomials by length, power, intensity, and perceptual markedness, and barely by frequency; the models order them by length and frequency, and run against perceptual markedness.
+
+This may reflect different strategies. Length and frequency are recoverable from distributional statistics alone, which is the information a language model has in abundance. Power, intensity, and perceptual markedness are harder to learn based on distributional properties alone, and people appear to use them where models do not.
+
+Finally, while we find an effect of abstract preferences for the novel binomials here, this seems to contradict the earlier results of @houghton2025role who found no effect of abstract preferences for language models. We argue that these results are not contradictory: @houghton2025role examined the preferences of language models for *attested* binomials, while we examined the preferences of *novel* binomials. The results instead suggest that while language models learn abstract preferences, they do not use them for attested binomials, and instead prefer to reproduce the ordering in their training.
+
+Overall the present study demonstrates that language models do learn abstract preferences which overlap partially with the abstract preferences learned by humans; however, they show little sensitivity to the semantic constraints that drive human ordering preferences and instead rely mostly on the abstract preferences that correspond to distributional properties, such as length and frequency.
 
 # Limitations
 
-PLACEHOLDER. Carries over from the ACL submission, plus two additions: novelty
-for ten of the `r N_MODELS` models rests on absence from three corpora rather
-than their own undisclosed training data, and a single construction in a single
-language remains the main scope limitation.
+The primary limitation is that we only test a single construction in this paper (binomials) and in only one language (English). While it is possible that abstract ordering preferences for binomials differ from other constructions, binomials are well understood in the human linguistics literature and thus make a good test case for our analyses. We look forward to expanding this work to additional languages and additional constructions in future work.
 
-# References {.unnumbered}
+Two further limitations concern our materials. First, novelty for seven of the `r N_MODELS` models rests on absence from Dolma, the Pile, and BabyLM jointly rather than on their own training data: GPT-2's WebText is not indexed and Qwen3's training data is not disclosed. For the remaining `r N_MODELS - 7` models we can point to the corpus they were actually trained on. Second, the constraints are correlated across our item set, with the largest pairwise correlation at 0.72 and variance inflation factors reaching 3.07. Collinearity inflates intervals rather than biasing estimates, but it does mean that an individual constraint's coefficient is partialled against the others, and three constraints that are positively associated with model preference on their own carry negative coefficients in the joint model.
 
 ::: {#refs}
 :::
+
+```{=latex}
+\clearpage
+\onecolumn
+% Keep LaTeX from stretching interparagraph space to fill pages when a long
+% table relocates away from its declaration point.
+\raggedbottom
+\appendix
+% Appendix floats may sit "here" as well as top/bottom/page.
+\floatplacement{figure}{htbp}
+```
+
+# Explanation of Each of the Individual Constraints {#app-constraint-defs}
+
+An explanation of each constraint is given below, following @morgan2015modeling. The name in parentheses is the label used for that constraint in the tables and figures of this paper, and the weight is the one estimated on human data by @morgan2015modeling. A positive value of a constraint favors the alphabetically first word.
+
+-   **Length** (Len, `r mlw("Len")`): the shorter word, measured in syllables, comes first, e.g., *abused and neglected*.
+-   **No Final Stress** (BStress, `r mlw("BStress")`): the final syllable of the second word should not be stressed, e.g., *abused and neglected*.
+-   **Lapse** (Lapse, `r mlw("Lapse")`): avoid unstressed syllables in a row, e.g., *FARMS and HAY-fields* rather than *HAY-fields and FARMS*.
+-   **Frequency** (Freq, `r mlw("Freq")`): the more frequent word comes first, e.g., *bride and groom*.
+-   **Formal Markedness** (Form, `r mlw("Form")`): the word with the more general meaning or broader distribution comes first, e.g., *boards and two-by-fours*.
+-   **Perceptual Markedness** (Percept, `r mlw("Percept")`): elements more closely connected to the speaker come first. This constraint covers @cooper1975world's *Me First* constraint and a number of subconstraints, such as animates preceding inanimates and concrete words preceding abstract ones, e.g., *deer and trees*.
+-   **Power** (Power, `r mlw("Power")`): the more powerful or culturally prioritized word comes first, e.g., *clergymen and parishioners*.
+-   **Iconic/Scalar Sequencing** (Icon, `r mlw("Icon")`): elements that exist in sequence are ordered in sequence, e.g., *achieved and maintained*.
+-   **Cultural Centrality** (Culture, `r mlw("Culture")`): the more culturally central or common element comes first, e.g., *oranges and grapefruits*.
+-   **Intensity** (Intense, `r mlw("Intense")`): the element with more intensity comes first, e.g., *war and peace*.
+
+\clearpage
+
+# Models Scored {#app-models}
+
+```{r}
+#| label: tbl-models
+#| tbl-pos: "H"
+#| tbl-cap: "The 20 base models scored, by family and parameter count. All are base (non-instruct) checkpoints. Families are included only where at least three sizes are available."
+
+llm$coverage %>%
+  transmute(Model = pretty_model(model),
+            Family = model_family,
+            `Params (M)` = params) %>%
+  arrange(Family, `Params (M)`) %>%
+  kbl(booktabs = TRUE, longtable = TRUE,
+      format.args = list(big.mark = ",")) %>%
+  kable_styling(latex_options = c("repeat_header"))
+```
+
+\clearpage
+
+# Constraint Collinearity {#app-vif}
+
+```{r}
+#| label: tbl-vif
+#| tbl-pos: "H"
+#| tbl-cap: "Variance inflation factors for the nine constraints over the 444-item set."
+
+vifs %>%
+  mutate(term = factor(term, levels = CONSTRAINTS_MODELLED)) %>%
+  arrange(term) %>%
+  transmute(Constraint = as.character(term), VIF = sprintf("%.2f", vif)) %>%
+  kbl(booktabs = TRUE, escape = TRUE) %>%
+  kable_styling(font_size = 8)
+```
+
+\clearpage
+
+# Abstract Preference, Per Model {#app-abspref}
+
+```{r}
+#| label: tbl-abspref-full
+#| tbl-pos: "H"
+#| tbl-cap: "Abstract preference coefficient for each model, without and with the corpus bigram control. Est is the posterior median, CI the 95% credible interval (2.5th to 97.5th percentile), and P(b>0) the proportion of posterior draws above zero. The final column is the bigram coefficient from the controlled arm."
+
+fmt <- function(e, l, h) sprintf("%.2f [%.2f, %.2f]", e, l, h)
+
+abspref %>%
+  transmute(Model = pretty_model(name), Family = model_family, params,
+            Alone = fmt(est, lo, hi), `P1` = sprintf("%.1f", pgt0)) %>%
+  inner_join(
+    abspref_bg %>% filter(term == "AbsPref_c") %>%
+      transmute(Model = pretty_model(name),
+                Controlled = fmt(est, lo, hi), `P2` = sprintf("%.1f", pgt0)),
+    by = "Model") %>%
+  inner_join(
+    abspref_bg %>% filter(term == "bigram_logodds_z") %>%
+      transmute(Model = pretty_model(name), Bigram = fmt(est, lo, hi)),
+    by = "Model") %>%
+  arrange(Family, params) %>%
+  select(Model, Family, Alone, `P1`, Controlled, `P2`, Bigram) %>%
+  rename(`P(b>0)` = P1, `P(b>0) ` = P2) %>%
+  kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8)
+```
+
+\clearpage
+
+# Constraint Coefficients, Per Model {#app-constraints}
+
+```{r}
+#| label: tbl-constraints-full
+#| tbl-cap: "Per-constraint coefficients from the bigram-controlled arm, one row per model and constraint. Est is the posterior median, CI the 95% credible interval, and P(b>0) the proportion of draws above zero. Icon is omitted: it is zero for every item in this set and so cannot be estimated."
+#| tbl-pos: "H"
+
+constraints_a4 %>%
+  filter(term != "bigram_logodds_z") %>%
+  mutate(Model = pretty_model(name),
+         term = factor(term, levels = CONSTRAINTS_MODELLED)) %>%
+  arrange(model_family, params, term) %>%
+  transmute(Model, Constraint = as.character(term),
+            Est = sprintf("%.2f", est),
+            CI = sprintf("[%.2f, %.2f]", lo, hi),
+            `P(b>0)` = sprintf("%.1f", pgt0)) %>%
+  kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8) %>%
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+\clearpage
+
+# Model Preferences as a Predictor of Human Choices {#app-human}
+
+```{r}
+#| label: tbl-h2l-full
+#| tbl-pos: "H"
+#| tbl-cap: "Human choices regressed on each model's ordering preference, one model per row. The predictor is each model's item-level preference scaled by its own standard deviation."
+
+h2l %>%
+  mutate(Model = pretty_model(model), Family = model_family) %>%
+  arrange(Family, params) %>%
+  transmute(Model, Family,
+            Est = sprintf("%.3f", est),
+            CI = sprintf("[%.3f, %.3f]", lo, hi),
+            `P(b>0)` = sprintf("%.1f", pgt0)) %>%
+  kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8)
+```
+
+\clearpage
+
+# Abstract Preference Across Training, Per Checkpoint {#app-exp3-brms}
+
+```{r}
+#| label: tbl-exp3-brms
+#| tbl-pos: "H"
+#| tbl-cap: "Abstract preference estimates from the per-checkpoint brms fits. Est./$\\sigma$ is the estimate in units of the residual standard deviation, which is the quantity plotted in Figure 4."
+
+e3_s1 %>%
+  mutate(Model = factor(pretty_model(model), levels = e3_levels)) %>%
+  arrange(Model, tokens) %>%
+  transmute(Model = as.character(Model),
+            `Tokens (M)` = formatC(tokens / 1e6, format = "f", digits = 0,
+                                   big.mark = ","),
+            Est = sprintf("%.3f", est),
+            Error = sprintf("%.3f", se),
+            `Est./sigma` = sprintf("%.3f", est_z)) %>%
+  kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE,
+      col.names = c("Model", "Tokens (M)", "Est.", "Error", "Est./SD")) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8) %>%
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```
+
+\clearpage
+
+# GAM Smooth Summaries {#app-gam}
+
+```{r}
+#| label: tbl-gam-smooth
+#| tbl-pos: "H"
+#| tbl-cap: "GAM smooth summary for the constraint trajectories. EDF = estimated degrees of freedom; p = p-value for the s(tokens, by = constraint) smooth term."
+
+res("exp3_constraints_smooth.csv") %>%
+  mutate(Model = pretty_model(model),
+         term = factor(term, levels = CONSTRAINTS_MODELLED)) %>%
+  arrange(Model, term) %>%
+  transmute(Model, Constraint = as.character(term),
+            EDF = sprintf("%.2f", edf),
+            `F` = sprintf("%.2f", f_stat),
+            p = ifelse(p_value < 0.001, "< 0.001", sprintf("%.3f", p_value))) %>%
+  kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE) %>%
+  kable_styling(latex_options = c("repeat_header"), font_size = 8) %>%
+  collapse_rows(columns = 1, latex_hline = "major", valign = "top")
+```

@@ -117,9 +117,19 @@ add_bigram_logodds <- function(df, corpus = BIGRAM_CORPUS_DEFAULT,
 
 ## Morgan & Levy abstract-preference weights -----------------------------------
 ##
-## Lifted verbatim from the CoNLL script, where AbsPref/GenPref is defined as a
-## logistic over the weighted constraint sum. Keep these exact, so AbsPref is
-## comparable across the two studies.
+## Posterior means of the constraint weights from the logistic regression
+## component of Morgan & Levy's (2015) hierarchical Bayesian model of binomial
+## ordering preferences, read off Figure 2(a), "Beta-binomial model with
+## variable concentration". Higher weights indicate a greater contribution to
+## productive-knowledge-based preferences.
+##
+## Recorded here because the chain of scripts these were copied through
+## (small-lm-binom-ordering-prefs, hand-trained-model-prefs) carries the
+## constants without naming a source, which makes the provenance impossible to
+## check from the code alone.
+##
+## AbsPref/GenPref is a logistic over the weighted constraint sum. Keep these
+## exact, so AbsPref is comparable across studies.
 ##
 ## Icon carries by far the largest weight (1.30), but every novel item in this
 ## study is coded Icon = 0, so the term contributes nothing here. It is kept in

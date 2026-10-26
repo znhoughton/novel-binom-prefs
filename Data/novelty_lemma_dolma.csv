@@ -1,0 +1,459 @@
+item_id,word1,word2,corpus,n_variants,n_attested,surface_count,total_count,max_count,novel_surface,novel_lemma,attested_forms,untrusted_hits
+item_001,brooks,earthquakes,dolma,16,0,0,0,0,True,True,,0
+item_002,pilgrims,senators,dolma,16,0,0,0,0,True,True,,5
+item_003,fools,magistrates,dolma,16,1,0,1,1,True,False,magistrates and fool=1,3
+item_004,brooks,straits,dolma,16,2,0,3,2,True,False,brooks and strait=2; strait and brooks=1,8
+item_005,brooks,reefs,dolma,16,0,0,0,0,True,True,,7
+item_006,physicians,troopers,dolma,16,1,0,1,1,True,False,troopers and physician=1,3
+item_007,cadets,lords,dolma,16,1,0,2,2,True,False,lords and cadet=2,5
+item_008,gunners,senators,dolma,16,0,0,0,0,True,True,,4
+item_009,brooks,tornadoes,dolma,16,1,0,1,1,True,False,tornado and brooks=1,7
+item_010,captives,senators,dolma,16,0,0,0,0,True,True,,0
+item_011,philosophers,recruits,dolma,16,1,0,3,3,True,False,philosophers and recruit=3,1
+item_012,outlaws,senators,dolma,16,1,0,2,2,True,False,senators and outlaw=2,7
+item_013,earls,prisoners,dolma,16,1,0,1,1,True,False,prisoners and earl=1,5
+item_014,cadets,governors,dolma,16,3,0,5,2,True,False,Governor and cadets=2; cadets and governor=2; governor and cadets=1,8
+item_015,commanders,pilgrims,dolma,16,1,0,1,1,True,False,Pilgrims and commander=1,5
+item_016,architects,beggars,dolma,16,1,0,2,2,True,False,beggars and architect=2,6
+item_017,bishops,cadets,dolma,16,0,0,0,0,True,True,,7
+item_018,masons,queens,dolma,16,2,0,4,3,True,False,masons and queen=1; queens and mason=3,15
+item_019,architects,outlaws,dolma,16,1,0,3,3,True,False,Outlaws and architect=3,3
+item_020,magistrates,pilgrims,dolma,16,0,0,0,0,True,True,,7
+item_021,chancellors,prisoners,dolma,16,0,0,0,0,True,True,,4
+item_022,earthquakes,straits,dolma,16,1,0,2,2,True,False,strait and earthquakes=2,6
+item_023,carpenters,governors,dolma,16,0,0,0,0,True,True,,5
+item_024,gunners,princes,dolma,16,0,0,0,0,True,True,,3
+item_025,beggars,commanders,dolma,16,0,0,0,0,True,True,,2
+item_026,gunners,recruits,dolma,16,2,0,6,5,True,False,Gunners and recruit=5; gunners and recruit=1,6
+item_027,marshals,monks,dolma,16,1,0,1,1,True,False,monks and marshal=1,6
+item_028,fools,lieutenants,dolma,16,1,0,2,2,True,False,lieutenants and fool=2,6
+item_029,cadets,philosophers,dolma,16,0,0,0,0,True,True,,6
+item_030,bakers,commanders,dolma,16,0,0,0,0,True,True,,8
+item_031,disciples,marshals,dolma,16,1,0,2,2,True,False,disciples and marshal=2,0
+item_032,disciples,outlaws,dolma,16,0,0,0,0,True,True,,5
+item_033,bishops,gladiators,dolma,16,0,0,0,0,True,True,,3
+item_034,gunners,magistrates,dolma,16,0,0,0,0,True,True,,0
+item_035,earls,hunters,dolma,16,0,0,0,0,True,True,,9
+item_036,gunners,pilgrims,dolma,16,0,0,0,0,True,True,,4
+item_037,earls,fools,dolma,16,0,0,0,0,True,True,,8
+item_038,hornets,jays,dolma,16,0,0,0,0,True,True,,9
+item_039,lieutenants,peasants,dolma,16,0,0,0,0,True,True,,5
+item_040,marshals,pilgrims,dolma,16,0,0,0,0,True,True,,6
+item_041,lieutenants,philosophers,dolma,16,0,0,0,0,True,True,,0
+item_042,commoners,professors,dolma,16,1,0,1,1,True,False,professor and commoners=1,3
+item_043,gunners,nobles,dolma,16,0,0,0,0,True,True,,4
+item_044,disciples,gladiators,dolma,16,0,0,0,0,True,True,,6
+item_045,bishops,sergeants,dolma,16,0,0,0,0,True,True,,4
+item_046,earls,surgeons,dolma,16,0,0,0,0,True,True,,4
+item_047,pharaohs,professors,dolma,16,0,0,0,0,True,True,,7
+item_048,bishops,tailors,dolma,16,0,0,0,0,True,True,,5
+item_049,ridges,tornadoes,dolma,16,0,0,0,0,True,True,,7
+item_050,pilgrims,sheriffs,dolma,16,0,0,0,0,True,True,,3
+item_051,earls,sailors,dolma,16,0,0,0,0,True,True,,4
+item_052,hornets,swans,dolma,16,0,0,0,0,True,True,,8
+item_053,cows,pumas,dolma,16,0,0,0,0,True,True,,0
+item_054,beggars,troopers,dolma,16,0,0,0,0,True,True,,5
+item_055,deacons,sailors,dolma,16,0,0,0,0,True,True,,4
+item_056,lieutenants,pilgrims,dolma,16,0,0,0,0,True,True,,3
+item_057,hermits,senators,dolma,16,0,0,0,0,True,True,,4
+item_058,pharaohs,surgeons,dolma,16,0,0,0,0,True,True,,0
+item_059,laborers,marshals,dolma,16,0,0,0,0,True,True,,0
+item_060,beggars,cadets,dolma,16,0,0,0,0,True,True,,0
+item_061,disciples,earls,dolma,16,0,0,0,0,True,True,,4
+item_062,locusts,turtles,dolma,16,0,0,0,0,True,True,,6
+item_063,dukes,laborers,dolma,16,0,0,0,0,True,True,,2
+item_064,captives,clerks,dolma,16,1,0,1,1,True,False,clerks and captive=1,2
+item_065,clerks,emperors,dolma,16,0,0,0,0,True,True,,2
+item_066,beggars,gunners,dolma,16,1,0,1,1,True,False,gunner and beggars=1,2
+item_067,cadets,captives,dolma,16,0,0,0,0,True,True,,2
+item_068,bakers,troopers,dolma,16,0,0,0,0,True,True,,6
+item_069,gladiators,pilgrims,dolma,16,0,0,0,0,True,True,,2
+item_070,philosophers,sergeants,dolma,16,0,0,0,0,True,True,,0
+item_071,executioners,professors,dolma,16,0,0,0,0,True,True,,3
+item_072,captives,gunners,dolma,16,0,0,0,0,True,True,,5
+item_073,emperors,gunners,dolma,16,0,0,0,0,True,True,,5
+item_074,admirals,monks,dolma,16,0,0,0,0,True,True,,4
+item_075,archbishops,hunters,dolma,16,0,0,0,0,True,True,,3
+item_076,magistrates,novices,dolma,16,0,0,0,0,True,True,,0
+item_077,cadets,outlaws,dolma,16,0,0,0,0,True,True,,0
+item_078,captives,marshals,dolma,16,0,0,0,0,True,True,,2
+item_079,apprentices,gunners,dolma,16,0,0,0,0,True,True,,9
+item_080,laborers,sheriffs,dolma,16,0,0,0,0,True,True,,4
+item_081,admirals,peasants,dolma,16,0,0,0,0,True,True,,4
+item_082,marshes,tornadoes,dolma,16,0,0,0,0,True,True,,2
+item_083,gunners,sheriffs,dolma,16,0,0,0,0,True,True,,2
+item_084,popes,troopers,dolma,16,0,0,0,0,True,True,,3
+item_085,pharaohs,recruits,dolma,16,0,0,0,0,True,True,,0
+item_086,archbishops,fools,dolma,16,0,0,0,0,True,True,,6
+item_087,baronesses,students,dolma,16,0,0,0,0,True,True,,2
+item_088,cadets,fugitives,dolma,16,0,0,0,0,True,True,,1
+item_089,fugitives,laborers,dolma,16,1,0,2,2,True,False,laborers and fugitive=2,4
+item_090,fugitives,gunners,dolma,16,0,0,0,0,True,True,,0
+item_091,falcons,locusts,dolma,16,0,0,0,0,True,True,,7
+item_092,bakers,captives,dolma,16,0,0,0,0,True,True,,2
+item_093,barons,captives,dolma,16,1,0,1,1,True,False,barons and captive=1,4
+item_094,apprentices,dukes,dolma,16,1,0,1,1,True,False,apprentices and duke=1,5
+item_095,jays,wolverines,dolma,16,0,0,0,0,True,True,,8
+item_096,beggars,sheriffs,dolma,16,1,0,1,1,True,False,sheriff and beggars=1,2
+item_097,laborers,lieutenants,dolma,16,0,0,0,0,True,True,,0
+item_098,droughts,straits,dolma,16,0,0,0,0,True,True,,4
+item_099,blizzards,shores,dolma,16,0,0,0,0,True,True,,4
+item_100,earls,pilgrims,dolma,16,0,0,0,0,True,True,,5
+item_101,gorillas,hornets,dolma,16,0,0,0,0,True,True,,11
+item_102,executioners,sailors,dolma,16,0,0,0,0,True,True,,2
+item_103,cadets,gladiators,dolma,16,0,0,0,0,True,True,,2
+item_104,bakers,sheriffs,dolma,16,1,0,1,1,True,False,sheriff and bakers=1,12
+item_105,archbishops,sailors,dolma,16,0,0,0,0,True,True,,2
+item_106,corporals,lords,dolma,16,0,0,0,0,True,True,,1
+item_107,bakers,fugitives,dolma,16,0,0,0,0,True,True,,2
+item_108,captives,carpenters,dolma,16,0,0,0,0,True,True,,2
+item_109,chimpanzees,wasps,dolma,16,0,0,0,0,True,True,,0
+item_110,caterpillars,jaguars,dolma,16,2,0,8,6,True,False,caterpillars and jaguar=2; jaguar and caterpillars=6,4
+item_111,jays,vipers,dolma,16,0,0,0,0,True,True,,3
+item_112,admirals,pilgrims,dolma,16,0,0,0,0,True,True,,6
+item_113,lieutenants,outlaws,dolma,16,0,0,0,0,True,True,,7
+item_114,chimpanzees,hornets,dolma,16,0,0,0,0,True,True,,0
+item_115,ferrets,jays,dolma,16,1,0,1,1,True,False,ferrets and jay=1,2
+item_116,beggars,wardens,dolma,16,0,0,0,0,True,True,,4
+item_117,carpenters,fugitives,dolma,16,0,0,0,0,True,True,,5
+item_118,emperors,wardens,dolma,16,0,0,0,0,True,True,,4
+item_119,beggars,novices,dolma,16,0,0,0,0,True,True,,4
+item_120,earthquakes,ravines,dolma,16,0,0,0,0,True,True,,2
+item_121,governors,jesters,dolma,16,0,0,0,0,True,True,,0
+item_122,gladiators,sheriffs,dolma,16,0,0,0,0,True,True,,4
+item_123,hornets,wolverines,dolma,16,0,0,0,0,True,True,,10
+item_124,jesters,professors,dolma,16,0,0,0,0,True,True,,5
+item_125,captives,novices,dolma,16,0,0,0,0,True,True,,2
+item_126,emperors,novices,dolma,16,0,0,0,0,True,True,,4
+item_127,gales,volcanoes,dolma,16,1,0,1,1,True,False,volcanoes and gale=1,4
+item_128,hermits,recruits,dolma,16,0,0,0,0,True,True,,0
+item_129,clarinets,shields,dolma,16,0,0,0,0,True,True,,0
+item_130,architects,tsars,dolma,16,0,0,0,0,True,True,,5
+item_131,empresses,farmers,dolma,16,0,0,0,0,True,True,,5
+item_132,gales,glaciers,dolma,16,2,0,6,5,True,False,gales and glacier=5; glaciers and gale=1,3
+item_133,crickets,wolverines,dolma,16,0,0,0,0,True,True,,0
+item_134,beggars,sergeants,dolma,16,0,0,0,0,True,True,,2
+item_135,chancellors,pilgrims,dolma,16,0,0,0,0,True,True,,0
+item_136,gladiators,lieutenants,dolma,16,0,0,0,0,True,True,,2
+item_137,emperors,sergeants,dolma,16,1,0,2,2,True,False,emperors and sergeant=2,6
+item_138,earls,shepherds,dolma,16,0,0,0,0,True,True,,9
+item_139,corporals,fools,dolma,16,0,0,0,0,True,True,,2
+item_140,novices,sheriffs,dolma,16,0,0,0,0,True,True,,2
+item_141,captives,earls,dolma,16,0,0,0,0,True,True,,4
+item_142,admirals,clerks,dolma,16,0,0,0,0,True,True,,8
+item_143,pharaohs,troopers,dolma,16,0,0,0,0,True,True,,0
+item_144,caterpillars,doves,dolma,16,0,0,0,0,True,True,,2
+item_145,fugitives,wardens,dolma,16,0,0,0,0,True,True,,4
+item_146,cadets,commoners,dolma,16,0,0,0,0,True,True,,0
+item_147,dukes,tailors,dolma,16,0,0,0,0,True,True,,7
+item_148,admirals,laborers,dolma,16,0,0,0,0,True,True,,1
+item_149,duchesses,scholars,dolma,16,0,0,0,0,True,True,,4
+item_150,gladiators,masons,dolma,16,0,0,0,0,True,True,,2
+item_151,fugitives,novices,dolma,16,0,0,0,0,True,True,,2
+item_152,commoners,gunners,dolma,16,0,0,0,0,True,True,,0
+item_153,clerks,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_154,avalanches,straits,dolma,16,0,0,0,0,True,True,,2
+item_155,jesters,surgeons,dolma,16,0,0,0,0,True,True,,6
+item_156,outlaws,sergeants,dolma,16,0,0,0,0,True,True,,4
+item_157,bakers,earls,dolma,16,0,0,0,0,True,True,,11
+item_158,emperors,tailors,dolma,16,0,0,0,0,True,True,,6
+item_159,avalanches,reefs,dolma,16,0,0,0,0,True,True,,4
+item_160,earls,outlaws,dolma,16,0,0,0,0,True,True,,3
+item_161,laborers,pharaohs,dolma,16,0,0,0,0,True,True,,2
+item_162,plateaus,straits,dolma,16,3,0,3,1,True,False,Strait and plateaus=1; plateau and straits=1; plateaus and strait=1,4
+item_163,clarinets,swords,dolma,16,0,0,0,0,True,True,,2
+item_164,apprentices,earls,dolma,16,0,0,0,0,True,True,,4
+item_165,gunners,pharaohs,dolma,16,0,0,0,0,True,True,,3
+item_166,commodores,disciples,dolma,16,0,0,0,0,True,True,,4
+item_167,commoners,marshals,dolma,16,0,0,0,0,True,True,,0
+item_168,countesses,farmers,dolma,16,1,0,1,1,True,False,countesses and farmer=1,2
+item_169,fugitives,scribes,dolma,16,0,0,0,0,True,True,,2
+item_170,admirals,beggars,dolma,16,0,0,0,0,True,True,,4
+item_171,colonels,laborers,dolma,16,0,0,0,0,True,True,,0
+item_172,countesses,judges,dolma,16,0,0,0,0,True,True,,5
+item_173,masons,wardens,dolma,16,0,0,0,0,True,True,,14
+item_174,outlaws,tailors,dolma,16,0,0,0,0,True,True,,2
+item_175,moths,vipers,dolma,16,1,0,1,1,True,False,vipers and moth=1,5
+item_176,colonels,gunners,dolma,16,0,0,0,0,True,True,,10
+item_177,hermits,magistrates,dolma,16,0,0,0,0,True,True,,0
+item_178,earls,fugitives,dolma,16,0,0,0,0,True,True,,6
+item_179,deacons,outlaws,dolma,16,0,0,0,0,True,True,,3
+item_180,admirals,captives,dolma,16,0,0,0,0,True,True,,2
+item_181,marshals,pharaohs,dolma,16,0,0,0,0,True,True,,1
+item_182,ferrets,hornets,dolma,16,0,0,0,0,True,True,,5
+item_183,commodores,philosophers,dolma,16,0,0,0,0,True,True,,2
+item_184,duchesses,physicians,dolma,16,0,0,0,0,True,True,,4
+item_185,doves,fireflies,dolma,16,1,0,2,2,True,False,fireflies and dove=2,4
+item_186,blizzards,straits,dolma,16,0,0,0,0,True,True,,4
+item_187,daggers,violins,dolma,16,0,0,0,0,True,True,,0
+item_188,captives,pharaohs,dolma,16,1,0,1,1,True,False,Pharaoh and captives=1,4
+item_189,countesses,prisoners,dolma,16,1,0,1,1,True,False,prisoners and countess=1,4
+item_190,bakers,commoners,dolma,16,0,0,0,0,True,True,,2
+item_191,baboons,hornets,dolma,16,0,0,0,0,True,True,,0
+item_192,blizzards,ridges,dolma,16,1,0,1,1,True,False,blizzard and ridges=1,4
+item_193,carpenters,earls,dolma,16,0,0,0,0,True,True,,11
+item_194,fireflies,gorillas,dolma,16,0,0,0,0,True,True,,3
+item_195,plateaus,tornadoes,dolma,16,0,0,0,0,True,True,,7
+item_196,clarinets,spears,dolma,16,0,0,0,0,True,True,,0
+item_197,chancellors,laborers,dolma,16,0,0,0,0,True,True,,0
+item_198,barons,pharaohs,dolma,16,0,0,0,0,True,True,,5
+item_199,bays,blizzards,dolma,16,0,0,0,0,True,True,,2
+item_200,outlaws,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_201,earls,gladiators,dolma,16,0,0,0,0,True,True,,3
+item_202,hornets,pheasants,dolma,16,0,0,0,0,True,True,,2
+item_203,gorillas,locusts,dolma,16,0,0,0,0,True,True,,2
+item_204,locusts,robins,dolma,16,0,0,0,0,True,True,,4
+item_205,admirals,fugitives,dolma,16,0,0,0,0,True,True,,4
+item_206,commoners,fugitives,dolma,16,0,0,0,0,True,True,,0
+item_207,blacksmiths,cadets,dolma,16,0,0,0,0,True,True,,0
+item_208,llamas,vultures,dolma,16,1,0,5,5,True,False,vulture and llamas=5,2
+item_209,canyons,gales,dolma,16,0,0,0,0,True,True,,4
+item_210,robins,vipers,dolma,16,1,0,1,1,True,False,robin and vipers=1,2
+item_211,fugitives,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_212,deacons,gladiators,dolma,16,0,0,0,0,True,True,,0
+item_213,moths,pheasants,dolma,16,0,0,0,0,True,True,,4
+item_214,archbishops,cadets,dolma,16,0,0,0,0,True,True,,2
+item_215,chimpanzees,fireflies,dolma,16,0,0,0,0,True,True,,0
+item_216,admirals,carpenters,dolma,16,0,0,0,0,True,True,,5
+item_217,avalanches,marshes,dolma,16,0,0,0,0,True,True,,2
+item_218,archbishops,laborers,dolma,16,0,0,0,0,True,True,,0
+item_219,archbishops,gunners,dolma,16,0,0,0,0,True,True,,2
+item_220,earls,novices,dolma,16,0,0,0,0,True,True,,4
+item_221,dukes,executioners,dolma,16,0,0,0,0,True,True,,0
+item_222,admirals,masons,dolma,16,0,0,0,0,True,True,,12
+item_223,bakers,chancellors,dolma,16,0,0,0,0,True,True,,6
+item_224,hermits,troopers,dolma,16,0,0,0,0,True,True,,1
+item_225,admirals,gladiators,dolma,16,0,0,0,0,True,True,,10
+item_226,chancellors,outlaws,dolma,16,0,0,0,0,True,True,,2
+item_227,blacksmiths,captives,dolma,16,0,0,0,0,True,True,,2
+item_228,blacksmiths,emperors,dolma,16,0,0,0,0,True,True,,2
+item_229,fireflies,leopards,dolma,16,1,0,1,1,True,False,fireflies and leopard=1,4
+item_230,countesses,slaves,dolma,16,0,0,0,0,True,True,,4
+item_231,cadets,hermits,dolma,16,1,0,1,1,True,False,cadets and hermit=1,2
+item_232,earls,sergeants,dolma,16,0,0,0,0,True,True,,9
+item_233,chimpanzees,grasshoppers,dolma,16,0,0,0,0,True,True,,0
+item_234,bakers,executioners,dolma,16,0,0,0,0,True,True,,2
+item_235,archbishops,captives,dolma,16,0,0,0,0,True,True,,0
+item_236,hermits,laborers,dolma,16,0,0,0,0,True,True,,0
+item_237,duchesses,surgeons,dolma,16,0,0,0,0,True,True,,4
+item_238,empresses,physicians,dolma,16,0,0,0,0,True,True,,0
+item_239,commoners,wardens,dolma,16,0,0,0,0,True,True,,0
+item_240,oracles,unicorns,dolma,16,1,0,1,1,True,False,unicorns and oracle=1,3
+item_241,chestnuts,daisies,dolma,16,0,0,0,0,True,True,,6
+item_242,archbishops,bakers,dolma,16,0,0,0,0,True,True,,3
+item_243,archbishops,outlaws,dolma,16,0,0,0,0,True,True,,4
+item_244,countesses,scholars,dolma,16,0,0,0,0,True,True,,2
+item_245,caterpillars,ferrets,dolma,16,0,0,0,0,True,True,,2
+item_246,carpenters,chancellors,dolma,16,0,0,0,0,True,True,,3
+item_247,blacksmiths,fugitives,dolma,16,0,0,0,0,True,True,,2
+item_248,axes,clarinets,dolma,16,0,0,0,0,True,True,,0
+item_249,countesses,senators,dolma,16,0,0,0,0,True,True,,6
+item_250,captives,hermits,dolma,16,0,0,0,0,True,True,,3
+item_251,llamas,wolverines,dolma,16,0,0,0,0,True,True,,0
+item_252,magpies,vipers,dolma,16,0,0,0,0,True,True,,0
+item_253,archbishops,fugitives,dolma,16,0,0,0,0,True,True,,2
+item_254,empresses,hunters,dolma,16,0,0,0,0,True,True,,8
+item_255,pheasants,scorpions,dolma,16,0,0,0,0,True,True,,2
+item_256,chameleons,hornets,dolma,16,0,0,0,0,True,True,,0
+item_257,pharaohs,sergeants,dolma,16,0,0,0,0,True,True,,2
+item_258,crypts,trumpets,dolma,16,1,0,1,1,True,False,crypts and trumpet=1,0
+item_259,brooks,tundras,dolma,16,0,0,0,0,True,True,,3
+item_260,countesses,physicians,dolma,16,0,0,0,0,True,True,,2
+item_261,earls,pharaohs,dolma,16,0,0,0,0,True,True,,6
+item_262,executioners,masons,dolma,16,0,0,0,0,True,True,,3
+item_263,apprentices,hermits,dolma,16,0,0,0,0,True,True,,4
+item_264,cheetahs,grasshoppers,dolma,16,0,0,0,0,True,True,,0
+item_265,grasshoppers,hyenas,dolma,16,0,0,0,0,True,True,,0
+item_266,commoners,tailors,dolma,16,0,0,0,0,True,True,,0
+item_267,hermits,sheriffs,dolma,16,0,0,0,0,True,True,,2
+item_268,admirals,deacons,dolma,16,0,0,0,0,True,True,,6
+item_269,accordions,spears,dolma,16,0,0,0,0,True,True,,0
+item_270,hares,vipers,dolma,16,1,0,1,1,True,False,Vipers and hare=1,4
+item_271,chancellors,novices,dolma,16,0,0,0,0,True,True,,4
+item_272,pumas,toads,dolma,16,1,0,1,1,True,False,toads and puma=1,5
+item_273,archbishops,gladiators,dolma,16,0,0,0,0,True,True,,0
+item_274,crossbows,trumpets,dolma,16,0,0,0,0,True,True,,0
+item_275,cellos,robes,dolma,16,1,0,4,4,True,False,robes and cello=4,0
+item_276,empresses,merchants,dolma,16,0,0,0,0,True,True,,3
+item_277,admirals,commoners,dolma,16,1,0,1,1,True,False,admiral and commoners=1,2
+item_278,baboons,fireflies,dolma,16,0,0,0,0,True,True,,2
+item_279,hermits,lieutenants,dolma,16,0,0,0,0,True,True,,4
+item_280,cadets,jesters,dolma,16,0,0,0,0,True,True,,2
+item_281,pheasants,wolverines,dolma,16,0,0,0,0,True,True,,0
+item_282,caterpillars,cobras,dolma,16,0,0,0,0,True,True,,0
+item_283,admirals,pharaohs,dolma,16,0,0,0,0,True,True,,1
+item_284,laborers,tsars,dolma,16,0,0,0,0,True,True,,0
+item_285,empresses,surgeons,dolma,16,0,0,0,0,True,True,,2
+item_286,countesses,governors,dolma,16,0,0,0,0,True,True,,4
+item_287,ferrets,vipers,dolma,16,0,0,0,0,True,True,,3
+item_288,archbishops,wardens,dolma,16,0,0,0,0,True,True,,4
+item_289,gladiators,hermits,dolma,16,0,0,0,0,True,True,,0
+item_290,gales,plateaus,dolma,16,0,0,0,0,True,True,,0
+item_291,bumblebees,gorillas,dolma,16,0,0,0,0,True,True,,2
+item_292,blacksmiths,earls,dolma,16,0,0,0,0,True,True,,3
+item_293,earls,executioners,dolma,16,0,0,0,0,True,True,,2
+item_294,shepherds,tsars,dolma,16,0,0,0,0,True,True,,0
+item_295,archbishops,scribes,dolma,16,0,0,0,0,True,True,,2
+item_296,captives,tsars,dolma,16,0,0,0,0,True,True,,0
+item_297,corporals,shepherds,dolma,16,0,0,0,0,True,True,,3
+item_298,executioners,tailors,dolma,16,0,0,0,0,True,True,,2
+item_299,bakers,jesters,dolma,16,0,0,0,0,True,True,,2
+item_300,chancellors,commoners,dolma,16,0,0,0,0,True,True,,1
+item_301,flutes,lances,dolma,16,0,0,0,0,True,True,,4
+item_302,jays,mantises,dolma,16,0,0,0,0,True,True,,5
+item_303,commodores,gladiators,dolma,16,0,0,0,0,True,True,,0
+item_304,outlaws,tsars,dolma,16,0,0,0,0,True,True,,0
+item_305,chancellors,pharaohs,dolma,16,0,0,0,0,True,True,,1
+item_306,gales,ravines,dolma,16,0,0,0,0,True,True,,0
+item_307,bumblebees,chimpanzees,dolma,16,0,0,0,0,True,True,,0
+item_308,admirals,blacksmiths,dolma,16,0,0,0,0,True,True,,2
+item_309,fugitives,jesters,dolma,16,0,0,0,0,True,True,,2
+item_310,hermits,sergeants,dolma,16,0,0,0,0,True,True,,4
+item_311,dragonflies,vipers,dolma,16,0,0,0,0,True,True,,3
+item_312,earls,hermits,dolma,16,0,0,0,0,True,True,,2
+item_313,accordions,axes,dolma,16,1,0,1,1,True,False,axes and accordion=1,0
+item_314,blacksmiths,pharaohs,dolma,16,0,0,0,0,True,True,,4
+item_315,executioners,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_316,archbishops,commoners,dolma,16,0,0,0,0,True,True,,0
+item_317,bumblebees,leopards,dolma,16,0,0,0,0,True,True,,3
+item_318,chisels,violins,dolma,16,1,0,1,1,True,False,chisels and violin=1,3
+item_319,carpenters,jesters,dolma,16,0,0,0,0,True,True,,0
+item_320,blacksmiths,colonels,dolma,16,0,0,0,0,True,True,,0
+item_321,llamas,weasels,dolma,16,0,0,0,0,True,True,,4
+item_322,hermits,tailors,dolma,16,0,0,0,0,True,True,,4
+item_323,bumblebees,wolverines,dolma,16,0,0,0,0,True,True,,3
+item_324,clarinets,daggers,dolma,16,0,0,0,0,True,True,,0
+item_325,archbishops,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_326,geese,mantises,dolma,16,1,0,2,2,True,False,mantis and geese=2,4
+item_327,blackbirds,vipers,dolma,16,0,0,0,0,True,True,,0
+item_328,bumblebees,magpies,dolma,16,0,0,0,0,True,True,,4
+item_329,countesses,recruits,dolma,16,0,0,0,0,True,True,,2
+item_330,blizzards,plateaus,dolma,16,1,0,1,1,True,False,plateaus and blizzard=1,2
+item_331,gladiators,tsars,dolma,16,0,0,0,0,True,True,,0
+item_332,corporals,masons,dolma,16,0,0,0,0,True,True,,4
+item_333,admirals,hermits,dolma,16,0,0,0,0,True,True,,2
+item_334,commoners,hermits,dolma,16,0,0,0,0,True,True,,0
+item_335,crossbows,flutes,dolma,16,0,0,0,0,True,True,,2
+item_336,duchesses,laborers,dolma,16,0,0,0,0,True,True,,0
+item_337,duchesses,gunners,dolma,16,0,0,0,0,True,True,,4
+item_338,blacksmiths,chancellors,dolma,16,0,0,0,0,True,True,,2
+item_339,chancellors,executioners,dolma,16,0,0,0,0,True,True,,0
+item_340,irises,turnips,dolma,16,1,0,1,1,True,False,iris and turnips=1,4
+item_341,ostriches,vipers,dolma,16,0,0,0,0,True,True,,3
+item_342,jaguars,mantises,dolma,16,0,0,0,0,True,True,,4
+item_343,hermits,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_344,abbots,commoners,dolma,16,0,0,0,0,True,True,,0
+item_345,jesters,wardens,dolma,16,0,0,0,0,True,True,,2
+item_346,earthquakes,tundras,dolma,16,1,0,1,1,True,False,tundra and earthquakes=1,0
+item_347,cellos,daggers,dolma,16,0,0,0,0,True,True,,2
+item_348,jesters,novices,dolma,16,0,0,0,0,True,True,,2
+item_349,tsars,wardens,dolma,16,0,0,0,0,True,True,,2
+item_350,empresses,pilgrims,dolma,16,0,0,0,0,True,True,,4
+item_351,colonels,hermits,dolma,16,0,0,0,0,True,True,,3
+item_352,bumblebees,vipers,dolma,16,0,0,0,0,True,True,,2
+item_353,beggars,duchesses,dolma,16,0,0,0,0,True,True,,2
+item_354,duchesses,shepherds,dolma,16,0,0,0,0,True,True,,3
+item_355,fireflies,quails,dolma,16,0,0,0,0,True,True,,0
+item_356,archbishops,blacksmiths,dolma,16,0,0,0,0,True,True,,2
+item_357,archbishops,executioners,dolma,16,0,0,0,0,True,True,,4
+item_358,jesters,sergeants,dolma,16,1,0,2,2,True,False,jester and sergeants=2,5
+item_359,earls,jesters,dolma,16,0,0,0,0,True,True,,0
+item_360,countesses,magistrates,dolma,16,0,0,0,0,True,True,,5
+item_361,baronesses,hunters,dolma,16,0,0,0,0,True,True,,5
+item_362,chancellors,hermits,dolma,16,0,0,0,0,True,True,,2
+item_363,antelopes,grasshoppers,dolma,16,1,0,1,1,True,False,grasshoppers and antelope=1,3
+item_364,corporals,earls,dolma,16,0,0,0,0,True,True,,5
+item_365,duchesses,sheriffs,dolma,16,0,0,0,0,True,True,,4
+item_366,architects,baronesses,dolma,16,0,0,0,0,True,True,,2
+item_367,baboons,bumblebees,dolma,16,1,0,1,1,True,False,baboon and bumblebees=1,0
+item_368,finches,weasels,dolma,16,0,0,0,0,True,True,,6
+item_369,deacons,jesters,dolma,16,0,0,0,0,True,True,,0
+item_370,countesses,pilgrims,dolma,16,0,0,0,0,True,True,,2
+item_371,tailors,tsars,dolma,16,0,0,0,0,True,True,,2
+item_372,duchesses,fugitives,dolma,16,0,0,0,0,True,True,,4
+item_373,baronesses,fools,dolma,16,0,0,0,0,True,True,,3
+item_374,basalts,emeralds,dolma,16,0,0,0,0,True,True,,5
+item_375,corporals,tailors,dolma,16,0,0,0,0,True,True,,1
+item_376,empresses,troopers,dolma,16,0,0,0,0,True,True,,5
+item_377,griffins,oracles,dolma,16,0,0,0,0,True,True,,2
+item_378,locusts,wrens,dolma,16,0,0,0,0,True,True,,0
+item_379,corporals,deacons,dolma,16,0,0,0,0,True,True,,0
+item_380,bumblebees,pheasants,dolma,16,1,0,2,2,True,False,bumblebees and pheasant=2,0
+item_381,locusts,newts,dolma,16,0,0,0,0,True,True,,2
+item_382,duchesses,lieutenants,dolma,16,0,0,0,0,True,True,,4
+item_383,doves,mantises,dolma,16,0,0,0,0,True,True,,2
+item_384,admirals,jesters,dolma,16,0,0,0,0,True,True,,1
+item_385,archbishops,hermits,dolma,16,0,0,0,0,True,True,,3
+item_386,cadets,empresses,dolma,16,0,0,0,0,True,True,,2
+item_387,admirals,tsars,dolma,16,1,0,1,1,True,False,tsar and admirals=1,4
+item_388,mantises,otters,dolma,16,1,0,1,1,True,False,otters and mantis=1,2
+item_389,empresses,laborers,dolma,16,0,0,0,0,True,True,,0
+item_390,commoners,corporals,dolma,16,0,0,0,0,True,True,,0
+item_391,empresses,gunners,dolma,16,0,0,0,0,True,True,,3
+item_392,baronesses,surgeons,dolma,16,0,0,0,0,True,True,,0
+item_393,duchesses,masons,dolma,16,0,0,0,0,True,True,,2
+item_394,birches,turnips,dolma,16,0,0,0,0,True,True,,0
+item_395,colonels,jesters,dolma,16,0,0,0,0,True,True,,3
+item_396,corporals,pharaohs,dolma,16,0,0,0,0,True,True,,0
+item_397,straits,tundras,dolma,16,1,0,1,1,True,False,straits and tundra=1,2
+item_398,bumblebees,cobras,dolma,16,0,0,0,0,True,True,,2
+item_399,maces,violins,dolma,16,0,0,0,0,True,True,,3
+item_400,accordions,daggers,dolma,16,0,0,0,0,True,True,,0
+item_401,colonels,tsars,dolma,16,1,0,2,2,True,False,colonels and tsar=2,4
+item_402,beggars,empresses,dolma,16,0,0,0,0,True,True,,4
+item_403,countesses,troopers,dolma,16,0,0,0,0,True,True,,0
+item_404,baronesses,sailors,dolma,16,0,0,0,0,True,True,,1
+item_405,captives,empresses,dolma,16,0,0,0,0,True,True,,2
+item_406,archbishops,commodores,dolma,16,0,0,0,0,True,True,,2
+item_407,duchesses,wardens,dolma,16,0,0,0,0,True,True,,3
+item_408,cellos,cloaks,dolma,16,0,0,0,0,True,True,,2
+item_409,chimpanzees,mantises,dolma,16,0,0,0,0,True,True,,0
+item_410,baronesses,monks,dolma,16,0,0,0,0,True,True,,7
+item_411,cadets,countesses,dolma,16,0,0,0,0,True,True,,5
+item_412,bakers,empresses,dolma,16,0,0,0,0,True,True,,3
+item_413,countesses,laborers,dolma,16,0,0,0,0,True,True,,0
+item_414,mantises,sparrows,dolma,16,0,0,0,0,True,True,,1
+item_415,empresses,outlaws,dolma,16,1,0,2,2,True,False,Empress and outlaws=2,5
+item_416,countesses,gunners,dolma,16,0,0,0,0,True,True,,0
+item_417,clarinets,lances,dolma,16,0,0,0,0,True,True,,0
+item_418,flamingoes,scorpions,dolma,16,0,0,0,0,True,True,,2
+item_419,flutes,maces,dolma,16,0,0,0,0,True,True,,1
+item_420,duchesses,scribes,dolma,16,0,0,0,0,True,True,,3
+item_421,baronesses,disciples,dolma,16,0,0,0,0,True,True,,0
+item_422,baronesses,peasants,dolma,16,0,0,0,0,True,True,,2
+item_423,duchesses,sergeants,dolma,16,0,0,0,0,True,True,,2
+item_424,blacksmiths,tsars,dolma,16,0,0,0,0,True,True,,0
+item_425,alligators,mantises,dolma,16,0,0,0,0,True,True,,2
+item_426,countesses,shepherds,dolma,16,0,0,0,0,True,True,,5
+item_427,abbots,commodores,dolma,16,0,0,0,0,True,True,,4
+item_428,blacksmiths,corporals,dolma,16,0,0,0,0,True,True,,2
+item_429,corporals,executioners,dolma,16,1,0,3,3,True,False,executioners and corporal=3,0
+item_430,magpies,mantises,dolma,16,0,0,0,0,True,True,,0
+item_431,captives,countesses,dolma,16,0,0,0,0,True,True,,2
+item_432,empresses,lieutenants,dolma,16,0,0,0,0,True,True,,3
+item_433,duchesses,tailors,dolma,16,0,0,0,0,True,True,,2
+item_434,deacons,duchesses,dolma,16,0,0,0,0,True,True,,5
+item_435,carpenters,empresses,dolma,16,0,0,0,0,True,True,,2
+item_436,archbishops,corporals,dolma,16,0,0,0,0,True,True,,0
+item_437,cellos,lances,dolma,16,0,0,0,0,True,True,,2
+item_438,countesses,outlaws,dolma,16,0,0,0,0,True,True,,4
+item_439,empresses,masons,dolma,16,0,0,0,0,True,True,,2
+item_440,countesses,sheriffs,dolma,16,0,0,0,0,True,True,,4
+item_441,hares,mantises,dolma,16,0,0,0,0,True,True,,6
+item_442,countesses,fugitives,dolma,16,0,0,0,0,True,True,,4
+item_443,clarinets,crossbows,dolma,16,0,0,0,0,True,True,,0
+item_444,duchesses,pharaohs,dolma,16,0,0,0,0,True,True,,3
+item_445,abbots,jesters,dolma,16,0,0,0,0,True,True,,3
+item_446,corporals,hermits,dolma,16,0,0,0,0,True,True,,0
+item_447,empresses,wardens,dolma,16,0,0,0,0,True,True,,3
+item_448,abbots,tsars,dolma,16,0,0,0,0,True,True,,0
+item_449,flamingoes,locusts,dolma,16,0,0,0,0,True,True,,2
+item_450,kales,orchids,dolma,16,2,0,5,4,True,False,Orchids and kale=1; orchids and kale=4,2
+item_451,baronesses,pilgrims,dolma,16,0,0,0,0,True,True,,0
+item_452,cellos,crypts,dolma,16,0,0,0,0,True,True,,0
+item_453,empresses,novices,dolma,16,0,0,0,0,True,True,,4
+item_454,carpenters,countesses,dolma,16,0,0,0,0,True,True,,2
+item_455,flamingoes,vipers,dolma,16,0,0,0,0,True,True,,2
+item_456,sapphires,wools,dolma,16,0,0,0,0,True,True,,3
+item_457,hedgehogs,mantises,dolma,16,0,0,0,0,True,True,,2
+item_458,countesses,masons,dolma,16,0,0,0,0,True,True,,2
