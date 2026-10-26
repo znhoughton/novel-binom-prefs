@@ -396,7 +396,7 @@ ggplot(hm, aes(term, nm)) +
         axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-The results of the individual constraint analysis demonstrate that the abstract preferences are driven by a few constraints. Our results show an effect of length in `r gt("Len", pos)` of `r N_MODELS` models and an effect of lexical frequency in `r gt("Freq", pos)`, both in the direction the human-derived weights predict. No other constraint approaches this. Perceptual markedness runs the other way: it is *negative* in `r gt("Percept", neg)` models and positive in none, against a positive weight of 0.249 in @morgan2015modeling. The constraints carrying the most weight in the human model, cultural centrality at 0.418 and stress at 0.360, do not drive the ordering preferences in most models and are inconsistent in sign. Per-constraint estimates for all `r N_MODELS` models are reported in `Appendix~\ref{app-constraints}`{=latex}.
+The results of the individual constraint analysis demonstrate that the abstract preferences are driven by a few constraints. Our results show an effect of length in `r gt("Len", pos)` of `r N_MODELS` models and an effect of lexical frequency in `r gt("Freq", pos)`, both in the direction the human-derived weights predict. No other constraint approaches this. Perceptual markedness runs the other way: it is *negative* in `r gt("Percept", neg)` models and positive in none, against a positive weight of 0.249 in @morgan2015modeling. The constraints carrying the most weight in the human model, cultural centrality at 0.418 and stress at 0.360, do not drive the ordering preferences in most models and are inconsistent in sign. Per-constraint estimates for all `r N_MODELS` models, with and without the bigram control, are reported in `Appendix~\ref{app-constraints}`{=latex}.
 
 ## Discussion
 
@@ -807,18 +807,29 @@ abspref %>%
 
 ```{r}
 #| label: tbl-constraints-full
-#| tbl-cap: "Per-constraint coefficients from the bigram-controlled arm, one row per model and constraint. Est is the posterior median, CI the 95% credible interval, and P(b>0) the proportion of draws above zero. Icon is omitted: it is zero for every item in this set and so cannot be estimated."
+#| tbl-cap: "Per-constraint coefficients for each model, without and with the corpus bigram control, one row per model and constraint. Each cell is the posterior median with the 95% credible interval (2.5th to 97.5th percentile); P(b>0) is the proportion of posterior draws above zero. Icon is omitted: it is zero for every item in this set and so cannot be estimated."
 #| tbl-pos: "H"
 
-constraints_a4 %>%
-  filter(term != "bigram_logodds_z") %>%
-  mutate(Model = pretty_model(name),
-         term = factor(term, levels = CONSTRAINTS_MODELLED)) %>%
-  arrange(model_family, params, term) %>%
-  transmute(Model, Constraint = as.character(term),
-            Est = sprintf("%.2f", est),
-            CI = sprintf("[%.2f, %.2f]", lo, hi),
-            `P(b>0)` = sprintf("%.1f", pgt0)) %>%
+## Same without/with shape as tbl-abspref-full, so the two appendices can be
+## read the same way. `fmt` is defined in that chunk, which precedes this one.
+arm_cols <- function(d, est_name, p_name) {
+  d %>%
+    filter(term != "bigram_logodds_z") %>%
+    mutate(Model = pretty_model(name),
+           term = factor(term, levels = CONSTRAINTS_MODELLED)) %>%
+    arrange(model_family, params, term) %>%
+    transmute(Model, Constraint = as.character(term),
+              !!est_name := fmt(est, lo, hi),
+              !!p_name := sprintf("%.1f", pgt0))
+}
+
+inner_join(
+  arm_cols(constraints_a3, "Alone", "P1"),
+  arm_cols(constraints_a4, "Controlled", "P2"),
+  by = c("Model", "Constraint")
+) %>%
+  select(Model, Constraint, Alone, P1, Controlled, P2) %>%
+  rename(`P(b>0)` = P1, `P(b>0) ` = P2) %>%
   kbl(booktabs = TRUE, longtable = TRUE, escape = TRUE) %>%
   kable_styling(latex_options = c("repeat_header"), font_size = 8) %>%
   collapse_rows(columns = 1, latex_hline = "major", valign = "top")
