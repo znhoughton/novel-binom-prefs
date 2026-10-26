@@ -196,11 +196,18 @@ load_human_data <- function(path = "../Data/human-responses",
                             min_checks = 8,
                             exclude = PILOT_PARTICIPANTS) {
 
-  if (dir.exists(path)) {
-    files <- list.files(path, pattern = "\\.csv$", full.names = TRUE)
-    if (!length(files)) stop("no .csv files found in ", path)
+  ## An empty raw directory is the normal state of a fresh clone: the directory
+  ## itself is tracked, for the note saying what belongs in it, but the exports
+  ## are not. So "exists but holds no csv" has to fall through to the
+  ## de-identified data rather than erroring.
+  raw_files <- if (dir.exists(path)) {
+    list.files(path, pattern = "\\.csv$", full.names = TRUE)
+  } else character(0)
+
+  if (length(raw_files)) {
+    files <- raw_files
     message("reading ", length(files), " file(s) from ", path)
-  } else if (file.exists(path)) {
+  } else if (!dir.exists(path) && file.exists(path)) {
     files <- path
     message("reading database export: ", basename(path))
   } else if (all(file.exists(PREPARED))) {
