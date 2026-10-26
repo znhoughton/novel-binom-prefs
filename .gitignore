@@ -49,6 +49,8 @@ Analysis/*_files/
 # Data/human-{trials,checks,participants}.csv that the models and the writeup
 # read; those are committed, these are not.
 Data/human-responses/
+# but keep the note saying what belongs in that directory
+!Data/human-responses/README.md
 
 # The pilot participants' SONA ids, needed only to process the raw exports.
 Analysis/.pilot_participants

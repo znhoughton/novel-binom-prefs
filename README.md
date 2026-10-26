@@ -10,11 +10,14 @@ fit with the same specification, so the constraint weights are comparable.
 ## Layout
 
 ```
-Analysis/     R: loaders, constraint definitions, the analysis notebooks
-Data/         conditions file, novelty screens, bigram controls, responses, LLM scores
-Scripts/      Python: LLM scoring, novelty screens, bigram counts, experiment build
-Writeup/      Quarto paper (ACL format)
-Experiment/   the PsychoPy experiment (NOT in this repo, see below)
+Analysis/     R: loaders, constraint definitions, model fitting, the notebooks
+Data/          conditions file, novelty screens, bigram controls, LLM scores,
+               and the de-identified human trials
+Results/       tidy posterior summaries the paper renders from
+Scripts/       Python: LLM scoring, novelty screens, bigram counts, experiment build
+Writeup/       Quarto paper (ACL format)
+Experiment/    the PsychoPy experiment (NOT in this repo, see below)
+Data/human-responses/   the raw Pavlovia exports (NOT in this repo, see below)
 ```
 
 ## The item set
@@ -22,6 +25,18 @@ Experiment/   the PsychoPy experiment (NOT in this repo, see below)
 **444 novel binomials.** An item is novel only if the phrase itself is
 unattested: four surface forms (`w1 and w2`, `W1 and w2`, `w2 and w1`,
 `W2 and w1`) must all return zero.
+
+This surface screen is what selects the items. `check_novelty_corpora.py
+--variants lemma` additionally checks each binomial with its nouns in the other
+number, which is a **stricter** criterion and not one the item set was filtered
+on: of the 444, all 444 are unattested in BabyLM on that criterion too, 421 in
+the Pile, and 383 in Dolma. The per-item results are in
+`Data/novelty_lemma_{dolma,pile,babylm}.csv`.
+
+The lemma check is restricted to the lowercase and capitalised-first spellings.
+All-caps and title-case queries return identical counts for both orderings,
+which means the index is not discriminating between them, so they cannot
+support a novelty claim either way.
 
 Novelty is **corpus-relative**, and the screen is run against every corpus a
 model in the set was trained on:
@@ -38,9 +53,11 @@ everywhere. `drop_non_novel()` in `constraints.R` applies this at load time, so
 the exclusion stays visible and reversible rather than being baked into the
 conditions file.
 
-GPT-2's WebText is not indexed and Qwen3/Llama/Gemma/Mistral corpora are
-undisclosed, so for those ten models novelty rests on absence from the three
-corpora above rather than on their own training data.
+GPT-2's WebText is not indexed and Qwen3's corpus is undisclosed, so for those
+seven models novelty rests on absence from the three corpora above rather than
+on their own training data. The single-model families (Llama, Gemma, Mistral)
+were dropped from the set: the scale comparison needs at least three sizes
+within a family.
 
 ## Item ids: why `item_XXX` and not `nov_XXX`
 
@@ -99,14 +116,58 @@ difference being measured.
 
 ```
 Analysis/constraints.R          Morgan & Levy weights and AbsPref, shared
-Analysis/load_human_data.R      Pavlovia responses -> scored trials
-Analysis/load_llm_data.R        per-model CSVs -> scored items
+Analysis/load_human_data.R      Pavlovia responses -> scored trials, or the
+                                de-identified CSVs when the raw are absent
+Analysis/load_llm_data.R        per-model CSVs -> scored items, + checkpoints
+Analysis/prepare_human_data.R   raw exports -> the de-identified CSVs
 Analysis/human_prefs_analysis.Rmd
 Analysis/llm_prefs_analysis.Rmd
+Analysis/fit_llm_predicts_human.R      human choice ~ each model's preference
+Analysis/fit_constraint_trajectories.R per-constraint GAMs over training
+Analysis/export_results.R              fitted models -> Results/*.csv
 ```
 
-Run from `Analysis/`; the loaders use relative paths. Both notebooks set
+`export_results.R` is the seam between fitting and writing. It walks the cached
+fits in `Analysis/models/` once, reduces each to the few numbers the paper
+needs, and writes `Results/*.csv`; the paper then renders from those rather than
+loading eighty brms objects. Re-run it after refitting anything, and commit the
+CSVs it produces.
+
+Run from `Analysis/`; the loaders use relative paths. Every script sets
 `options(contrasts = c("contr.sum", "contr.sum"))` and seed 964.
+
+### The human data is de-identified, and the raw exports are not here
+
+The raw Pavlovia exports carry SONA participant ids, which are
+institution-linked and re-identifiable by anyone with SONA access, so
+`Data/human-responses/` is gitignored. What ships instead is the output of
+`prepare_human_data.R`:
+
+```
+Data/human-trials.csv        3,100 retained trials; the exact brms input
+Data/human-participants.csv  29 participants, with check counts and exclusions
+Data/human-checks.csv        290 scored attention-check trials
+```
+
+`load_human_data()` reads the raw exports when they are present and falls back
+to these otherwise, returning the same four-element list either way, so a clone
+reproduces 3,100 trials over 444 items from 21 of 29 participants with no raw
+data at all.
+
+Relabelling `participant` is not by itself enough. The export also carries
+`__participant`, which is Pavlovia's own independent id, and per-session `date`
+and `__datetime` timestamps, which single a participant out in a sample this
+size. `prepare_human_data.R` drops all of them and then re-reads the files it
+wrote to check that no raw id survived, failing rather than reporting success.
+The participant codes are assigned in seeded shuffled order, so they are stable
+across runs and carry no information about who ran when. No crosswalk is
+written anywhere in the repo.
+
+If you add raw exports, re-run `prepare_human_data.R` and commit the three
+regenerated CSVs. The pilot participants' ids live in an untracked
+`Analysis/.pilot_participants`, one per line; without it `PILOT_PARTICIPANTS` is
+empty and the two pilot sessions are not excluded, which only matters when
+processing raw exports.
 
 Two details worth knowing before touching the human loader:
 
@@ -195,8 +256,10 @@ The experiment on Pavlovia (`gitlab.pavlovia.org/znhoughton/novel-binom-judgemen
 - **Item ids** renamed, see above.
 
 Pilot participants who ran before counterbalancing are excluded
-(`PILOT_PARTICIPANTS`); keeping them would force the side term out of the model
-for everyone, since their `alpha_side` is NA.
+(`PILOT_PARTICIPANTS`, read from the untracked `Analysis/.pilot_participants`);
+keeping them would force the side term out of the model for everyone, since
+their `alpha_side` is NA. In the de-identified CSVs their exclusion is already
+recorded in `is_pilot`, so the fallback path does not need the ids.
 
 ## Analyses
 
@@ -207,9 +270,12 @@ Four specifications per side, each fit with and without the bigram control:
 | Abstract preference | `preference ~ AbsPref_c` | `chose_alpha ~ AbsPref_c` |
 | Individual constraints | `preference ~ 9 constraints` | `chose_alpha ~ 9 constraints` |
 
-plus, once human data is in, 23 separate logistic fits of human choice on each
-model's preference. Separate rather than pooled: a pooled fit would repeat each
-human response once per model, pseudoreplicating it 23-fold.
+plus 20 separate logistic fits of human choice on each model's preference
+(`fit_llm_predicts_human.R`). Separate rather than pooled: a pooled fit would
+repeat each human response once per model, pseudoreplicating it 20-fold. These
+are fit at the trial level, not on item proportions: with a median of seven
+judgements per binomial the reliability of an item proportion is about 0.4,
+which caps any item-level correlation near 0.65 however well a model predicts.
 
 Random effects follow the rule that a predictor takes a slope only for a
 grouping factor within which it varies. Constraints are item properties, so they
@@ -224,6 +290,16 @@ before data collection completes.
 `Writeup/writeup.qmd`, ACL format via the `_extensions/acl` extension. Render
 with `quarto render --to acl-pdf`; plain `--to pdf` silently bypasses the
 extension.
+
+It reads `Results/*.csv` and never opens a model object, so it renders without
+the fits. Two things to know before editing it:
+
+- Inline `` `r ` `` in a paragraph is evaluated in document order, so anything a
+  paragraph reports has to be computed in a chunk **above** it. Each section
+  therefore opens with an `include: false` setup chunk.
+- `acl.sty` defines `thebibliography` with its own `\section*{References}` and
+  ignores `\bibsection`, so the document must not add a `# References` heading
+  of its own or the word appears twice.
 
 ## Experiment 3: preferences across training
 
@@ -246,7 +322,27 @@ checkpoints are always kept. `tokens_per_step` converts steps to tokens seen,
 which is the x-axis worth plotting: a step is a different amount of data for
 different models, so the comparison of interest is at matched tokens.
 
-Currently 9 models expose usable checkpoints (Pythia x5, OLMo-3-7B, BabyLM x3),
-giving 127 checkpoint-scorings at the default of 15 per model. Each is 46,716
-sequences, so this is a substantial job: run it on the H100 box rather than
-locally.
+Nine models have been scored at checkpoints, but `load_checkpoint_data()`
+requires `min_checkpoints = 8`, which drops `pythia-2.8b` (5 scored) and
+`pythia-6.9b` (1). **Seven** models therefore reach the analysis: BabyLM x3 and
+Pythia 160m/410m/1.4b at 14 checkpoints each, and OLMo-3-7B at 15, giving 99
+checkpoint fits. Finishing 2.8b and 6.9b would bring them in automatically.
+Each scoring is 46,716 sequences, so this is a substantial job: run it on the
+H100 box rather than locally.
+
+Two analyses run over these:
+
+- **Abstract preference.** `Equation 2` refit separately at each checkpoint, one
+  estimate per checkpoint, then a spline smooth across them for the figure.
+  Checkpoints below 10^6 tokens are excluded from the smooth: an untrained
+  model's coefficient is not identifiable, and for three Pythia models step 0
+  and step 1 carry identical scores, which would double-weight the left edge.
+- **Individual constraints.** `fit_constraint_trajectories.R`, one
+  varying-coefficient GAM per model via `bam()`, `s(log_tokens, by = <constraint>)`.
+  With a numeric `by` the smooth multiplies the covariate, so the fitted smooth
+  *is* that constraint's coefficient as a function of training. The constraints
+  are deliberately not also entered as main effects: a numeric `by` smooth is
+  not centred, so adding them would double-count. This replaced a per-checkpoint
+  Bayesian version that would have taken about eight days; the GAMs take under a
+  minute each and agree with per-checkpoint OLS at r = 0.82 to 0.97 for eight of
+  the nine constraints.

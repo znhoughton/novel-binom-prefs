@@ -118,6 +118,22 @@ constraints_a3 <- res("constraints.csv")
 constraints_a4 <- res("constraints_bg.csv")
 vifs           <- res("constraint_vif.csv")
 
+## Lemma-level novelty, reported alongside the surface screen that actually
+## selected the items. Restricted to the modelled set, so these are counts out
+## of the items the paper reports on rather than out of the original pool.
+dat <- function(f) read_csv(file.path(RES, "..", "Data", f),
+                            show_col_types = FALSE, progress = FALSE)
+ITEM_IDS <- res("item_abspref.csv")$item_id
+n_lemma <- function(corpus) {
+  dat(paste0("novelty_lemma_", corpus, ".csv")) %>%
+    filter(item_id %in% ITEM_IDS) %>%
+    pull(novel_lemma) %>%
+    sum()
+}
+N_LEM_DOLMA  <- n_lemma("dolma")
+N_LEM_PILE   <- n_lemma("pile")
+N_LEM_BABYLM <- n_lemma("babylm")
+
 ## Published constraint weights, for the appendix that explains each one. Lapse
 ## is stored negative because the source formula subtracts it; the weight itself
 ## is reported as a magnitude, as in Morgan & Levy (2015).
@@ -225,7 +241,7 @@ In the present study we examine whether large language models are simply copying
 
 ## Novel binomials
 
-We first created a set of novel binomials by constructing naturalistic-sounding binomials and then searching Dolma v1.7, BabyLM, and the Pile [using the infini-gram index, @Liu2024InfiniGram] to confirm that they did not appear in either ordering, or with the same nouns as singular or plural, regardless of capitalization. Altogether, this left us with `r N_ITEMS` novel binomials.
+We first created a set of novel binomials by constructing naturalistic-sounding binomials and then searching Dolma v1.7, BabyLM, and the Pile [using the infini-gram index, @Liu2024InfiniGram] to confirm that neither ordering of the phrase appeared in any of them, regardless of capitalization. Altogether, this left us with `r N_ITEMS` novel binomials. We additionally checked each binomial against the same corpora with its nouns in the other number, which is a stricter criterion than the one we used to select the items: `r N_LEM_BABYLM` of the `r N_ITEMS` are unattested in BabyLM on that criterion as well, `r N_LEM_PILE` in the Pile, and `r N_LEM_DOLMA` in Dolma.
 
 GPT-2's WebText is not indexed and Qwen3's training data is not disclosed, so for those seven models novelty rests on absence from Dolma, the Pile, and BabyLM jointly rather than on their own training data.`\codefootnote{}`{=latex}
 
