@@ -1,30 +1,47 @@
 participant,n_checks,n_correct,is_pilot,keep,reason
 P01,10,10,FALSE,TRUE,NA
-P02,10,9,TRUE,FALSE,pilot: ran before side counterbalancing was added
+P02,10,8,FALSE,TRUE,NA
 P03,10,9,FALSE,TRUE,NA
 P04,10,9,FALSE,TRUE,NA
 P05,10,10,FALSE,TRUE,NA
 P06,10,6,FALSE,FALSE,passed 6/10 attention checks (threshold 8)
-P07,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
-P08,10,10,FALSE,TRUE,NA
-P09,10,9,FALSE,TRUE,NA
+P07,10,5,FALSE,FALSE,passed 5/10 attention checks (threshold 8)
+P08,10,6,FALSE,FALSE,passed 6/10 attention checks (threshold 8)
+P09,8,5,FALSE,FALSE,passed 5/8 attention checks (threshold 8)
 P10,10,9,FALSE,TRUE,NA
-P11,10,8,FALSE,TRUE,NA
+P11,10,9,FALSE,TRUE,NA
 P12,10,9,FALSE,TRUE,NA
-P13,10,8,FALSE,TRUE,NA
+P13,10,9,FALSE,TRUE,NA
 P14,10,8,FALSE,TRUE,NA
 P15,10,8,FALSE,TRUE,NA
-P16,10,7,TRUE,FALSE,pilot: ran before side counterbalancing was added
+P16,10,9,TRUE,FALSE,pilot: ran before side counterbalancing was added
 P17,10,9,FALSE,TRUE,NA
 P18,10,9,FALSE,TRUE,NA
-P19,10,5,FALSE,FALSE,passed 5/10 attention checks (threshold 8)
-P20,10,9,FALSE,TRUE,NA
-P21,10,10,FALSE,TRUE,NA
-P22,10,9,FALSE,TRUE,NA
-P23,10,10,FALSE,TRUE,NA
+P19,10,10,FALSE,TRUE,NA
+P20,9,9,FALSE,TRUE,NA
+P21,10,9,FALSE,TRUE,NA
+P22,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
+P23,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
 P24,10,8,FALSE,TRUE,NA
-P25,10,6,FALSE,FALSE,passed 6/10 attention checks (threshold 8)
-P26,10,10,FALSE,TRUE,NA
-P27,10,6,FALSE,FALSE,passed 6/10 attention checks (threshold 8)
-P28,10,8,FALSE,TRUE,NA
-P29,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
+P25,10,9,FALSE,TRUE,NA
+P26,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
+P27,10,8,FALSE,TRUE,NA
+P28,10,9,FALSE,TRUE,NA
+P29,10,10,FALSE,TRUE,NA
+P30,10,8,FALSE,TRUE,NA
+P31,10,10,FALSE,TRUE,NA
+P32,10,7,FALSE,FALSE,passed 7/10 attention checks (threshold 8)
+P33,10,9,FALSE,TRUE,NA
+P34,10,8,FALSE,TRUE,NA
+P35,10,9,FALSE,TRUE,NA
+P36,10,7,TRUE,FALSE,pilot: ran before side counterbalancing was added
+P37,10,10,FALSE,TRUE,NA
+P38,10,9,FALSE,TRUE,NA
+P39,10,9,FALSE,TRUE,NA
+P40,10,6,FALSE,FALSE,passed 6/10 attention checks (threshold 8)
+P41,10,9,FALSE,TRUE,NA
+P42,10,10,FALSE,TRUE,NA
+P43,10,9,FALSE,TRUE,NA
+P44,10,5,FALSE,FALSE,passed 5/10 attention checks (threshold 8)
+P45,10,10,FALSE,TRUE,NA
+P46,10,8,FALSE,TRUE,NA
